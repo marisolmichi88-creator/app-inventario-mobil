@@ -23,8 +23,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    flexBasis: "47%",
-    flexGrow: 1,
+    flex: 1,
     padding: 16
   },
   warning: {

@@ -46,6 +46,22 @@ pnpm start
 
 Luego escaneas el QR con Expo Go o abres el emulador Android.
 
+## ¿Cómo generar el APK instalable?
+
+Para generar un archivo `.apk` puro e instalable en dispositivos Android sin depender de Expo Go, usamos el servicio gratuito **EAS Build** (Expo Application Services). No requiere instalar Android Studio ni configurar SDKs pesados localmente.
+
+### Pasos:
+1. Crea una cuenta gratuita en [expo.dev/signup](https://expo.dev/signup) si no la tienes.
+2. Abre una terminal en la raíz del proyecto y ejecuta:
+   ```bash
+   npx eas-cli build -p android --profile preview
+   ```
+3. La terminal te pedirá iniciar sesión con tu cuenta de Expo.
+4. El código se subirá a los servidores de Expo, quienes compilarán la aplicación. Este proceso suele demorar entre 5 a 10 minutos.
+5. Al finalizar, la consola te mostrará un **Código QR** y un enlace directo. Escanéalo con tu celular para descargar e instalar el `.apk`.
+
+*Nota: La configuración interna para que Expo sepa que debe generar un `.apk` y no un bundle para la Play Store ya está configurada en el archivo `eas.json`.*
+
 ## Backend futuro
 
 La carpeta `src/services` ya separa la comunicacion con API. Cuando tengamos backend, cambiamos los datos simulados por llamadas reales sin rehacer las pantallas.
@@ -55,3 +71,5 @@ Documentos utiles:
 - `docs/product-scope.md`
 - `docs/database-model.md`
 - `docs/backend-contract.md`
+
+IMPORTANTE REVISAR AVANCE.MD Y RF.MD PARA CONOCER EL ESTADO ACTUAL DEL PROYECTO

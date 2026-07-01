@@ -1,35 +1,103 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useState, useCallback } from "react";
+import { useSQLiteContext } from "expo-sqlite";
 
 import { StatCard } from "@/components/StatCard";
-import { mockMovements, mockProducts } from "@/data/mockInventory";
 import { colors } from "@/theme/colors";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardScreen() {
-  const lowStock = mockProducts.filter((product) => product.stock <= product.minStock).length;
-  const totalStock = mockProducts.reduce((sum, product) => sum + product.stock, 0);
-  const activeProjects = new Set(mockMovements.map((movement) => movement.project)).size;
+  const { signOut } = useAuth();
+  const router = useRouter();
+  const db = useSQLiteContext();
+  
+  const [stats, setStats] = useState({ products: 0, totalStock: 0, lowStock: 0, projects: 0 });
+  const [movements, setMovements] = useState<any[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      async function loadData() {
+        try {
+          const prodCount = await db.getFirstAsync<{count: number}>("SELECT COUNT(*) as count FROM products");
+          const stockSum = await db.getFirstAsync<{total: number}>("SELECT SUM(stock) as total FROM products");
+          const lowCount = await db.getFirstAsync<{count: number}>("SELECT COUNT(*) as count FROM products WHERE stock <= min_stock");
+          const projCount = await db.getFirstAsync<{count: number}>("SELECT COUNT(*) as count FROM projects");
+
+          if (!isActive) return;
+
+          setStats({
+            products: prodCount?.count || 0,
+            totalStock: stockSum?.total || 0,
+            lowStock: lowCount?.count || 0,
+            projects: projCount?.count || 0,
+          });
+
+          // Load recent movements (limit 4)
+          const recent = await db.getAllAsync<{id: string, type: string, quantity: number, productName: string, project: string}>(
+            `SELECT m.id, m.type, m.quantity, p.name as productName, pr.name as project 
+             FROM movements m
+             LEFT JOIN products p ON m.product_id = p.id
+             LEFT JOIN projects pr ON m.project_id = pr.id
+             ORDER BY m.date DESC LIMIT 4`
+          );
+          
+          if (isActive) setMovements(recent);
+        } catch (e) {
+          console.warn("Error loading dashboard data", e);
+        }
+      }
+      
+      loadData();
+      return () => { isActive = false; };
+    }, [db])
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View>
-        <Text style={styles.kicker}>Proenergim E.I.R.L.</Text>
-        <Text style={styles.title}>Inventario movil</Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.kicker}>Proenergim E.I.R.L.</Text>
+          <Text style={styles.title}>Inventario movil</Text>
+        </View>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity onPress={() => router.push("/admin")} style={styles.adminBtn}>
+            <Ionicons name="settings-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
+            <Ionicons name="log-out-outline" size={24} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.grid}>
-        <StatCard label="Productos" value={mockProducts.length.toString()} />
-        <StatCard label="Stock total" value={totalStock.toString()} />
-        <StatCard label="Stock bajo" value={lowStock.toString()} tone="warning" />
-        <StatCard label="Proyectos" value={activeProjects.toString()} />
+        <TouchableOpacity style={styles.cardWrapper} onPress={() => router.push("/products")}>
+          <StatCard label="Productos" value={stats.products.toString()} />
+        </TouchableOpacity>
+        
+        <View style={styles.cardWrapper}>
+          <StatCard label="Stock total" value={Number(stats.totalStock || 0).toFixed(0)} />
+        </View>
+
+        <TouchableOpacity style={styles.cardWrapper} onPress={() => router.push({ pathname: "/products", params: { filter: "low_stock" } })}>
+          <StatCard label="Stock bajo" value={stats.lowStock.toString()} tone="warning" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.cardWrapper} onPress={() => router.push("/admin/projects")}>
+          <StatCard label="Proyectos" value={stats.projects.toString()} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Movimientos recientes</Text>
-        {mockMovements.slice(0, 4).map((movement) => (
+        {movements.length === 0 && <Text style={styles.meta}>No hay movimientos registrados.</Text>}
+        {movements.map((movement) => (
           <View key={movement.id} style={styles.movement}>
             <View>
-              <Text style={styles.product}>{movement.productName}</Text>
-              <Text style={styles.meta}>{movement.project}</Text>
+              <Text style={styles.product}>{movement.productName || 'Producto Eliminado'}</Text>
+              <Text style={styles.meta}>{movement.project || 'General'}</Text>
             </View>
             <Text style={movement.type === "entrada" ? styles.in : styles.out}>
               {movement.type === "entrada" ? "+" : "-"}
@@ -51,6 +119,25 @@ const styles = StyleSheet.create({
     gap: 20,
     padding: 20
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  adminBtn: {
+    padding: 8,
+    backgroundColor: '#E5F1FF',
+    borderRadius: 8,
+  },
+  logoutBtn: {
+    padding: 8,
+    backgroundColor: '#FFE5E5',
+    borderRadius: 8,
+  },
   kicker: {
     color: colors.primary,
     fontSize: 13,
@@ -67,6 +154,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12
+  },
+  cardWrapper: {
+    flexBasis: "47%",
+    flexGrow: 1,
   },
   section: {
     gap: 10
