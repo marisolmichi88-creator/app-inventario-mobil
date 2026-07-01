@@ -126,10 +126,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (_formKey.currentState!.validate()) {
                               setState(() { _errorMessage = null; });
                               try {
-                                await authProvider.login(
-                                  _emailController.text.trim(),
-                                  _passwordController.text,
+                                final success = await authProvider.login(
+                                  _emailController.text.trim().toLowerCase(),
+                                  _passwordController.text.trim(),
                                 );
+                                if (!success) {
+                                  setState(() {
+                                    _errorMessage = 'Correo o contraseña incorrectos';
+                                  });
+                                }
                               } catch (e) {
                                 setState(() {
                                   _errorMessage = e.toString().replaceAll('Exception: ', '');
