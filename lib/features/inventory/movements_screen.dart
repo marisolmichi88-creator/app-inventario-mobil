@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/providers/movements_provider.dart';
-import '../../data/models/movement_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/warehouses_provider.dart';
@@ -41,7 +40,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial de Movimientos', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Historial de Movimientos',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         actions: [
           IconButton(
@@ -53,7 +55,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 _showMovementForm(prefilledCode: code);
               }
             },
-          )
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -67,10 +69,16 @@ class _MovementsScreenState extends State<MovementsScreen> {
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).primaryColor,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(24),
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
-              ]
+                BoxShadow(
+                  color: const Color(0xFF1959AD).withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             width: double.infinity,
             padding: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
@@ -80,14 +88,24 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 children: [
                   _buildFilterChip('Todos', 'ALL', Icons.list),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Solo Ingresos', 'IN', Icons.arrow_downward, Colors.green),
+                  _buildFilterChip(
+                    'Solo Ingresos',
+                    'IN',
+                    Icons.arrow_downward,
+                    Colors.green,
+                  ),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Solo Salidas', 'OUT', Icons.arrow_upward, Colors.redAccent),
+                  _buildFilterChip(
+                    'Solo Salidas',
+                    'OUT',
+                    Icons.arrow_upward,
+                    Colors.redAccent,
+                  ),
                 ],
               ),
             ),
           ),
-          
+
           Expanded(
             child: Consumer<MovementsProvider>(
               builder: (context, provider, child) {
@@ -105,9 +123,19 @@ class _MovementsScreenState extends State<MovementsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.history_rounded, size: 80, color: Colors.grey.shade300),
+                        Icon(
+                          Icons.history_rounded,
+                          size: 80,
+                          color: Colors.grey.shade300,
+                        ),
                         const SizedBox(height: 16),
-                        Text('No hay movimientos en esta categoría', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                        Text(
+                          'No hay movimientos en esta categoría',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 16,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -119,17 +147,26 @@ class _MovementsScreenState extends State<MovementsScreen> {
                   itemBuilder: (context, index) {
                     final mov = filteredMovements[index];
                     final isEntry = mov.type == 'IN';
-                    
+
                     final productsProvider = context.read<ProductsProvider>();
-                    final productName = productsProvider.products
-                        .where((p) => p.id == mov.productId)
-                        .firstOrNull?.name ?? 'Producto Desconocido';
-                        
-                    DateTime parsedDate = DateTime.tryParse(mov.date) ?? DateTime.now();
-                    String formattedDate = DateFormat('dd/MM/yyyy • hh:mm a').format(parsedDate);
+                    final productName =
+                        productsProvider.products
+                            .where((p) => p.id == mov.productId)
+                            .firstOrNull
+                            ?.name ??
+                        'Producto Desconocido';
+
+                    DateTime parsedDate =
+                        DateTime.tryParse(mov.date) ?? DateTime.now();
+                    String formattedDate = DateFormat(
+                      'dd/MM/yyyy • hh:mm a',
+                    ).format(parsedDate);
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -141,24 +178,46 @@ class _MovementsScreenState extends State<MovementsScreen> {
                           leading: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isEntry ? Colors.green.shade50 : Colors.red.shade50,
+                              color: isEntry
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
-                              isEntry ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                              color: isEntry ? Colors.green.shade700 : Colors.red.shade700,
+                              isEntry
+                                  ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                              color: isEntry
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
                             ),
                           ),
-                          title: Text(productName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            productName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Text(formattedDate, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                              if (mov.notes != null && mov.notes!.isNotEmpty) ...[
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (mov.notes != null &&
+                                  mov.notes!.isNotEmpty) ...[
                                 const SizedBox(height: 2),
-                                Text('Nota: ${mov.notes}', style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
-                              ]
+                                Text(
+                                  'Nota: ${mov.notes}',
+                                  style: const TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           trailing: Column(
@@ -170,7 +229,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 20,
-                                  color: isEntry ? Colors.green.shade700 : Colors.red.shade700,
+                                  color: isEntry
+                                      ? Colors.green.shade700
+                                      : Colors.red.shade700,
                                 ),
                               ),
                               Text(
@@ -196,16 +257,42 @@ class _MovementsScreenState extends State<MovementsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String type, IconData icon, [Color? color]) {
+  Widget _buildFilterChip(
+    String label,
+    String type,
+    IconData icon, [
+    Color? color,
+  ]) {
     final isSelected = _filterType == type;
     return FilterChip(
       selected: isSelected,
       showCheckmark: false,
-      avatar: Icon(icon, color: isSelected ? Colors.white : (color ?? Theme.of(context).primaryColor), size: 18),
-      label: Text(label, style: TextStyle(color: isSelected ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87), fontWeight: FontWeight.bold)),
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.white,
+      avatar: Icon(
+        icon,
+        color: isSelected
+            ? Colors.white
+            : (color ?? Theme.of(context).primaryColor),
+        size: 18,
+      ),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected
+              ? Colors.white
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.black87),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.surface
+          : Colors.white,
       selectedColor: color ?? Theme.of(context).colorScheme.secondary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.transparent)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Colors.transparent),
+      ),
       onSelected: (bool selected) {
         if (selected) {
           setState(() {
