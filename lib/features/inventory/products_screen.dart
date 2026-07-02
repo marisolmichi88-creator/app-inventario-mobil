@@ -192,7 +192,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   color: Theme.of(context).primaryColor,
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4)),
                   ]
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -236,8 +236,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             const Text('Stock Crítico', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                             Switch(
                               value: _showOnlyLowStock,
-                              activeColor: const Color(0xFFFCD34D), // color-accent-light
-                              activeTrackColor: const Color(0xFFF5DE0B).withOpacity(0.5),
+                              activeThumbColor: const Color(0xFFFCD34D), // color-accent-light
+                              activeTrackColor: const Color(0xFFF5DE0B).withValues(alpha: 0.5),
                               onChanged: (val) {
                                 setState(() {
                                   _showOnlyLowStock = val;
@@ -292,7 +292,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: isLowStock ? Colors.red.shade50 : Theme.of(context).primaryColor.withOpacity(0.1),
+                                        color: isLowStock ? Colors.red.shade50 : Theme.of(context).primaryColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Icon(

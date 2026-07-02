@@ -59,7 +59,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedRole,
+                        initialValue: selectedRole,
                         decoration: const InputDecoration(labelText: 'Rol'),
                         items: const [
                           DropdownMenuItem(value: 'admin', child: Text('Administrador')),

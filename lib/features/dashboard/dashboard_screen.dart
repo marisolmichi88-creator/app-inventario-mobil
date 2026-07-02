@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ]);
       }
 
-      String csvData = ListToCsvConverter().convert(rows);
+      String csvData = const ListToCsvConverter().convert(rows);
 
       final directory = await getExternalStorageDirectory(); // Android
       // Si es otro SO u otra config, path_provider maneja el path
@@ -228,7 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Bienvenido, ${user?.name.split(' ').first ?? 'Usuario'}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onBackground)),
+              Text('Bienvenido, ${user?.name.split(' ').first ?? 'Usuario'}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
               const SizedBox(height: 4),
               const Text('Resumen general de inventario', style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 24),
@@ -269,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                    Expanded(
                      child: Text(
                        'Últimos Movimientos',
-                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),
+                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                        overflow: TextOverflow.ellipsis,
                      ),
                    ),
@@ -278,7 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1959AD).withOpacity(0.1),
+                          color: const Color(0xFF1959AD).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Row(
@@ -381,7 +381,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               if (user?.role == 'admin') ...[
                 const SizedBox(height: 32),
-                 Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
+                 Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                  const SizedBox(height: 16),
                  Container(
                    height: 200,
@@ -390,7 +390,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                      color: Theme.of(context).cardTheme.color ?? Colors.white,
                      borderRadius: BorderRadius.circular(24),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10))
                     ]
                   ),
                   child: PieChart(
@@ -434,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(isDark ? 0.1 : 0.15),
+            color: color.withValues(alpha: isDark ? 0.1 : 0.15),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -446,13 +446,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 16),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 4),
           Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
         ],
@@ -473,7 +473,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF059669).withOpacity(0.3),
+            color: const Color(0xFF059669).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -488,7 +488,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const Text('Valor Total del Inventario', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500)),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
               )
             ],

@@ -87,8 +87,7 @@ class _AppWithThemeState extends State<_AppWithTheme> {
           primary: Color(0xFF1959AD),
           secondary: Color(0xFF0EA5E9), // color-primary
           surface: Colors.white,
-          background: Color(0xFFF0F9FF),
-          onBackground: Color(0xFF0F172A), // color-text
+          onSurface: Color(0xFF0F172A), // color-text
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
@@ -164,8 +163,7 @@ class _AppWithThemeState extends State<_AppWithTheme> {
           primary: Color(0xFF1959AD),
           secondary: Color(0xFF38BDF8), // color-primary-light
           surface: Color(0xFF1E293B),
-          background: Color(0xFF0F172A),
-          onBackground: Color(0xFFF1F5F9),
+          onSurface: Color(0xFFF1F5F9),
         ),
         cardTheme: CardThemeData(
           color: const Color(0xFF1E293B),

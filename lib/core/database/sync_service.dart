@@ -21,7 +21,7 @@ class SyncService {
         return;
       }
 
-      // TODO: Implementar llamada HTTP al API MySQL
+      // Nota: Implementar llamada HTTP al API MySQL
       // Ejemplo: 
       // final response = await http.post(
       //   Uri.parse('https://api.proenergim.com/sync/movements'),

@@ -49,7 +49,7 @@ class PdfService {
                   children: [
                     pw.Text(
                       'PROENERGIM',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 24,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.blue900,
@@ -57,7 +57,7 @@ class PdfService {
                     ),
                     pw.Text(
                       'Reporte Oficial de Movimientos de Inventario',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 14,
                         color: PdfColors.grey700,
                       ),
@@ -66,7 +66,7 @@ class PdfService {
                 ),
                 pw.Text(
                   'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
-                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+                  style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
                 ),
               ],
             ),
@@ -79,7 +79,7 @@ class PdfService {
               headers: tableHeaders,
               data: tableData,
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-              headerStyle: pw.TextStyle(
+              headerStyle: const pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.white,
               ),
@@ -151,7 +151,7 @@ class PdfService {
                 children: [
                   pw.Text(
                     prod.name,
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       fontSize: 10,
                     ),
@@ -187,7 +187,7 @@ class PdfService {
           return [
             pw.Text(
               'Etiquetas de Inventario - Proenergim',
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                 fontSize: 18,
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.blue900,

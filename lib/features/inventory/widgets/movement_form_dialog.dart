@@ -35,14 +35,19 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
   
   void _initializeData() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<ProductsProvider>().fetchProducts();
-      await context.read<WarehousesProvider>().fetchWarehouses();
-      await context.read<ProjectsProvider>().fetchProjects();
+      if (!mounted) return;
+      final productsProvider = context.read<ProductsProvider>();
+      final warehousesProvider = context.read<WarehousesProvider>();
+      final projectsProvider = context.read<ProjectsProvider>();
+
+      await productsProvider.fetchProducts();
+      await warehousesProvider.fetchWarehouses();
+      await projectsProvider.fetchProjects();
 
       if (mounted) {
-        final products = context.read<ProductsProvider>().products.where((p) => p.isActive).toList();
-        final warehouses = context.read<WarehousesProvider>().warehouses.where((w) => w.isActive).toList();
-        final projects = context.read<ProjectsProvider>().projects.where((p) => p.status == 'active').toList();
+        final products = productsProvider.products.where((p) => p.isActive).toList();
+        final warehouses = warehousesProvider.warehouses.where((w) => w.isActive).toList();
+        final projects = projectsProvider.projects.where((p) => p.status == 'active').toList();
         
         if (products.isNotEmpty) {
           if (widget.prefilledCode != null) {
@@ -103,7 +108,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Tipo de Movimiento'),
                 items: const [
@@ -114,7 +119,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: selectedProductId,
+                initialValue: selectedProductId,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Producto'),
                 items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
@@ -122,7 +127,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: selectedWarehouseId,
+                initialValue: selectedWarehouseId,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Almacén'),
                 items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis))).toList(),
@@ -131,7 +136,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               const SizedBox(height: 16),
               if (type == 'OUT' && projects.isNotEmpty) ...[
                 DropdownButtonFormField<int>(
-                  value: selectedProjectId,
+                  initialValue: selectedProjectId,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Asignar a Proyecto (Obligatorio)'),
                   items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),

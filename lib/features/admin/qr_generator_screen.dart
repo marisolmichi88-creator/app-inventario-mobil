@@ -120,7 +120,7 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                         Switch(
                           value: _isBarcode,
                           onChanged: (val) => setState(() => _isBarcode = val),
-                          activeColor: Theme.of(context).primaryColor,
+                          activeThumbColor: Theme.of(context).primaryColor,
                         ),
                       ],
                     )

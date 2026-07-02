@@ -52,7 +52,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
         _scannerController.stop();
         
         // Mostrar el formulario directamente sobre la cámara
-        final success = await showDialog<bool>(
+        await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (context) => MovementFormDialog(prefilledCode: code),
@@ -100,7 +100,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
           
           // Capa semi-transparente alrededor del área de escaneo
           ColorFiltered(
-            colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.6), BlendMode.srcOut),
+            colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.6), BlendMode.srcOut),
             child: Stack(
               children: [
                 Container(
@@ -149,7 +149,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                           decoration: BoxDecoration(
                             color: Colors.redAccent,
                             boxShadow: [
-                              BoxShadow(color: Colors.redAccent.withOpacity(0.8), blurRadius: 10, spreadRadius: 2)
+                              BoxShadow(color: Colors.redAccent.withValues(alpha: 0.8), blurRadius: 10, spreadRadius: 2)
                             ],
                           ),
                         ),

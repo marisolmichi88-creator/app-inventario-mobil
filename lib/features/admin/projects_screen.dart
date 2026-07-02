@@ -65,7 +65,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         decoration: const InputDecoration(labelText: 'Estado'),
                         items: const [
                           DropdownMenuItem(value: 'active', child: Text('Activo')),
