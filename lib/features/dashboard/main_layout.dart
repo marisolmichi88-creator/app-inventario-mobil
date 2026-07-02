@@ -37,29 +37,30 @@ class MainLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
+      bottomNavigationBar: NavigationBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey.shade400,
         elevation: 8,
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: (index) => _onItemTapped(index, context),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+        selectedIndex: _calculateSelectedIndex(context),
+        onDestinationSelected: (index) => _onItemTapped(index, context),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
             label: 'Inicio',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
             label: 'Productos',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.qr_code_scanner),
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner),
             label: 'Escáner',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.swap_horiz),
+          NavigationDestination(
+            icon: Icon(Icons.swap_horiz_outlined),
+            selectedIcon: Icon(Icons.swap_horiz),
             label: 'Movimientos',
           ),
         ],

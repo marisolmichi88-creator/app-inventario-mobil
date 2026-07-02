@@ -74,7 +74,7 @@ class BackupScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.security, size: 80, color: Color(0xFF0284C7)),
+              const Icon(Icons.security, size: 80, color: Color(0xFF1959AD)),
               const SizedBox(height: 24),
               const Text(
                 'Protege tu inventario creando copias de seguridad de la base de datos local y guárdalas en un lugar seguro.',
@@ -88,7 +88,7 @@ class BackupScreen extends StatelessWidget {
                 label: const Text('Exportar Copia de Seguridad'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
-                  backgroundColor: const Color(0xFF0284C7),
+                  backgroundColor: const Color(0xFF1959AD),
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -100,8 +100,8 @@ class BackupScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
                   backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.white,
-                  foregroundColor: const Color(0xFF0284C7),
-                  side: const BorderSide(color: Color(0xFF0284C7)),
+                  foregroundColor: const Color(0xFF1959AD),
+                  side: const BorderSide(color: Color(0xFF1959AD)),
                 ),
               ),
             ],

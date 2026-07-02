@@ -55,18 +55,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 children: [
                   TextFormField(
                     controller: codeController,
-                    decoration: const InputDecoration(labelText: 'Código / SKU', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Código / SKU'),
                     validator: (v) => v!.isEmpty ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: serialNumberController,
-                    decoration: const InputDecoration(labelText: 'Número de Serie (Opcional)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Número de Serie (Opcional)'),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nombre del Producto', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Nombre del Producto'),
                     validator: (v) => v!.isEmpty ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 16),
@@ -75,7 +75,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: stockController,
-                          decoration: const InputDecoration(labelText: 'Stock Inicial', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Stock Inicial'),
                           keyboardType: TextInputType.number,
                           enabled: !isEditing,
                         ),
@@ -84,7 +84,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: minStockController,
-                          decoration: const InputDecoration(labelText: 'Stock Mínimo', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Stock Mínimo'),
                           keyboardType: TextInputType.number,
                         ),
                       ),
@@ -96,14 +96,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Expanded(
                         child: TextFormField(
                           controller: unitController,
-                          decoration: const InputDecoration(labelText: 'Unidad (ej. Kg, Lt)', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Unidad (ej. Kg, Lt)'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
                           controller: priceController,
-                          decoration: const InputDecoration(labelText: 'Precio Unit.', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Precio Unit.'),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         ),
                       ),
@@ -188,16 +188,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
             children: [
               // Panel de Búsqueda
               Container(
-                color: Theme.of(context).primaryColor,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                  ]
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Column(
                   children: [
                     TextField(
                       controller: _searchController,
                       onChanged: (val) => setState(() => _searchQuery = val),
+                      style: const TextStyle(color: Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'Buscar por nombre o código...',
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        fillColor: Colors.white,
+                        prefixIcon: const Icon(Icons.search, color: Color(0xFF1959AD)),
                         suffixIcon: _searchQuery.isNotEmpty 
                             ? IconButton(
                                 icon: const Icon(Icons.clear, color: Colors.grey),
@@ -211,22 +220,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           borderRadius: BorderRadius.circular(30),
                           borderSide: BorderSide.none,
                         ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           '${filteredList.length} productos',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         Row(
                           children: [
-                            const Text('Stock Crítico', style: TextStyle(color: Colors.white)),
+                            const Text('Stock Crítico', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                             Switch(
                               value: _showOnlyLowStock,
-                              activeColor: Colors.redAccent,
+                              activeColor: const Color(0xFFFCD34D), // color-accent-light
+                              activeTrackColor: const Color(0xFFF5DE0B).withOpacity(0.5),
                               onChanged: (val) {
                                 setState(() {
                                   _showOnlyLowStock = val;

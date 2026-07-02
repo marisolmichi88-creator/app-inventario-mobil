@@ -105,7 +105,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               DropdownButtonFormField<String>(
                 value: type,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Tipo de Movimiento', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Tipo de Movimiento'),
                 items: const [
                   DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
                   DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
@@ -116,7 +116,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               DropdownButtonFormField<int>(
                 value: selectedProductId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Producto', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Producto'),
                 items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (val) => setState(() => selectedProductId = val),
               ),
@@ -124,7 +124,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               DropdownButtonFormField<int>(
                 value: selectedWarehouseId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Almacén', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Almacén'),
                 items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (val) => setState(() => selectedWarehouseId = val),
               ),
@@ -133,7 +133,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                 DropdownButtonFormField<int>(
                   value: selectedProjectId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Asignar a Proyecto (Obligatorio)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Asignar a Proyecto (Obligatorio)'),
                   items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (val) => setState(() => selectedProjectId = val),
                   validator: (val) => val == null ? 'Debe seleccionar un proyecto para la salida' : null,
@@ -142,7 +142,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               ],
               TextFormField(
                 controller: quantityController,
-                decoration: const InputDecoration(labelText: 'Cantidad', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Cantidad'),
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   if (v!.isEmpty) return 'Requerido';
@@ -153,7 +153,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: notesController,
-                decoration: const InputDecoration(labelText: 'Notas / Referencia (Opcional)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Notas / Referencia (Opcional)'),
                 maxLines: 2,
               ),
             ],

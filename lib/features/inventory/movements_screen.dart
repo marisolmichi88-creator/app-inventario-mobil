@@ -65,9 +65,15 @@ class _MovementsScreenState extends State<MovementsScreen> {
         children: [
           // Filtros
           Container(
-            color: Theme.of(context).primaryColor,
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+              ]
+            ),
             width: double.infinity,
-            padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+            padding: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(

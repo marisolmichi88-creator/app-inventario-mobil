@@ -112,12 +112,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               accountEmail: Text(user?.email ?? ''),
               currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.person, size: 40, color: Color(0xFF0284C7)),
+                child: Icon(Icons.person, size: 40, color: Color(0xFF1959AD)),
               ),
               decoration: const BoxDecoration(
-                color: Color(0xFF0284C7),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1959AD), Color(0xFF38BDF8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                children: [
             if (user?.role == 'admin') ...[
               ListTile(
                 leading: const Icon(Icons.people),
@@ -203,6 +211,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 context.read<AuthProvider>().logout();
               },
             ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -217,9 +228,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hola, ${user?.name?.split(' ').first ?? 'Usuario'} 👋', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onBackground)),
+              Text('Bienvenido, ${user?.name.split(' ').first ?? 'Usuario'}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onBackground)),
               const SizedBox(height: 4),
-              const Text('Aquí está el resumen de tu inventario', style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const Text('Resumen general de inventario', style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 24),
               
               if (user?.role == 'admin')
@@ -230,66 +241,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildGradientCard(
-                      title: 'Productos',
+                    child: _buildStatCard(
+                      context: context,
+                      title: 'Productos Totales',
                       value: totalProducts.toString(),
-                      icon: Icons.inventory_2,
-                      colors: [const Color(0xFF0284C7), const Color(0xFF38BDF8)],
+                      icon: Icons.inventory_2_rounded,
+                      color: const Color(0xFF1959AD),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildGradientCard(
+                    child: _buildStatCard(
+                      context: context,
                       title: 'Stock Crítico',
                       value: lowStockProducts.toString(),
                       icon: Icons.warning_rounded,
-                      colors: lowStockProducts > 0 
-                          ? [const Color(0xFFDC2626), const Color(0xFFF87171)]
-                          : [const Color(0xFF059669), const Color(0xFF34D399)],
+                      color: lowStockProducts > 0 ? const Color(0xFFDC2626) : const Color(0xFF059669),
                     ),
                   ),
                 ],
               ),
-
-              if (user?.role == 'admin') ...[
-                const SizedBox(height: 32),
-                 Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
-                 const SizedBox(height: 16),
-                 Container(
-                   height: 200,
-                   padding: const EdgeInsets.all(16),
-                   decoration: BoxDecoration(
-                     color: Theme.of(context).cardTheme.color ?? Colors.white,
-                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
-                    ]
-                  ),
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        PieChartSectionData(
-                          value: (totalProducts - lowStockProducts).toDouble(),
-                          color: const Color(0xFF059669),
-                          title: '${totalProducts - lowStockProducts}',
-                          radius: 50,
-                          titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        if (lowStockProducts > 0)
-                          PieChartSectionData(
-                            value: lowStockProducts.toDouble(),
-                            color: const Color(0xFFDC2626),
-                            title: '$lowStockProducts',
-                            radius: 50,
-                            titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
 
               const SizedBox(height: 32),
               Row(
@@ -307,14 +278,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0284C7).withOpacity(0.1),
+                          color: const Color(0xFF1959AD).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.download_rounded, color: Color(0xFF0284C7), size: 20),
+                            Icon(Icons.download_rounded, color: Color(0xFF1959AD), size: 20),
                             SizedBox(width: 4),
-                            Text('Exportar', style: TextStyle(color: Color(0xFF0284C7), fontWeight: FontWeight.bold)),
+                            Text('Exportar', style: TextStyle(color: Color(0xFF1959AD), fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -407,6 +378,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                   },
                 ),
+
+              if (user?.role == 'admin') ...[
+                const SizedBox(height: 32),
+                 Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
+                 const SizedBox(height: 16),
+                 Container(
+                   height: 200,
+                   padding: const EdgeInsets.all(16),
+                   decoration: BoxDecoration(
+                     color: Theme.of(context).cardTheme.color ?? Colors.white,
+                     borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
+                    ]
+                  ),
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 40,
+                      sections: [
+                        PieChartSectionData(
+                          value: (totalProducts - lowStockProducts).toDouble(),
+                          color: const Color(0xFF059669),
+                          title: '${totalProducts - lowStockProducts}',
+                          radius: 50,
+                          titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        if (lowStockProducts > 0)
+                          PieChartSectionData(
+                            value: lowStockProducts.toDouble(),
+                            color: const Color(0xFFDC2626),
+                            title: '$lowStockProducts',
+                            radius: 50,
+                            titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -414,33 +425,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildGradientCard({required String title, required String value, required IconData icon, required List<Color> colors, double? width}) {
+  Widget _buildStatCard({required BuildContext context, required String title, required String value, required IconData icon, required Color color}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: width,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         boxShadow: [
           BoxShadow(
-            color: colors.last.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: color.withOpacity(isDark ? 0.1 : 0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white.withOpacity(0.9), size: 32),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
           const SizedBox(height: 16),
-          Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
           const SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.9))),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
         ],
       ),
     );
@@ -453,13 +467,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+          colors: [Color(0xFF059669), Color(0xFF10B981)], // Verde vibrante
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.3),
+            color: const Color(0xFF059669).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
