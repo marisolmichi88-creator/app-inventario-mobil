@@ -196,8 +196,8 @@ class _MovementsScreenState extends State<MovementsScreen> {
       selected: isSelected,
       showCheckmark: false,
       avatar: Icon(icon, color: isSelected ? Colors.white : (color ?? Theme.of(context).primaryColor), size: 18),
-      label: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
-      backgroundColor: Colors.white,
+      label: Text(label, style: TextStyle(color: isSelected ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87), fontWeight: FontWeight.bold)),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.white,
       selectedColor: color ?? Theme.of(context).colorScheme.secondary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.transparent)),
       onSelected: (bool selected) {

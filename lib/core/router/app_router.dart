@@ -16,15 +16,11 @@ import '../../features/scanner/scanner_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/dashboard/main_layout.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
-
 class AppRouter {
-  static GoRouter getRouter(BuildContext context) {
+  static GoRouter createRouter(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
     return GoRouter(
-      navigatorKey: _rootNavigatorKey,
       initialLocation: '/splash',
       refreshListenable: authProvider,
       redirect: (context, state) {
@@ -57,7 +53,6 @@ class AppRouter {
           builder: (context, state) => const LoginScreen(),
         ),
         ShellRoute(
-          navigatorKey: _shellNavigatorKey,
           builder: (context, state, child) {
             return MainLayout(child: child);
           },
@@ -98,12 +93,10 @@ class AppRouter {
         ),
         GoRoute(
           path: '/qr-generator',
-          parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => const QrGeneratorScreen(),
         ),
         GoRoute(
           path: '/backup',
-          parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => const BackupScreen(),
         ),
       ],

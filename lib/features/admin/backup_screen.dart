@@ -99,7 +99,7 @@ class BackupScreen extends StatelessWidget {
                 label: const Text('Restaurar desde un Archivo'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.white,
                   foregroundColor: const Color(0xFF0284C7),
                   side: const BorderSide(color: Color(0xFF0284C7)),
                 ),

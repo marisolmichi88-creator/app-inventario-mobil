@@ -8,6 +8,7 @@ import '../../core/widgets/global_search_delegate.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/movements_provider.dart';
+import '../../data/providers/theme_provider.dart';
 import '../../data/models/movement_model.dart';
 import '../../data/models/product_model.dart';
 import '../../core/services/pdf_service.dart';
@@ -77,6 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = context.watch<AuthProvider>().currentUser;
     final productsProvider = context.watch<ProductsProvider>();
     final movementsProvider = context.watch<MovementsProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
 
     final products = productsProvider.products;
     final totalProducts = products.length;
@@ -85,7 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final recentMovements = movementsProvider.movements.take(5).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
@@ -181,6 +183,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             const Divider(),
+            SwitchListTile(
+              secondary: Icon(
+                themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                color: themeProvider.isDarkMode ? Colors.amber : Colors.blueGrey,
+              ),
+              title: const Text('Modo Oscuro'),
+              value: themeProvider.isDarkMode,
+              onChanged: (bool value) {
+                themeProvider.toggleTheme(value);
+              },
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
@@ -203,7 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hola, ${user?.name?.split(' ').first ?? 'Usuario'} 👋', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+              Text('Hola, ${user?.name?.split(' ').first ?? 'Usuario'} 👋', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onBackground)),
               const SizedBox(height: 4),
               const Text('Aquí está el resumen de tu inventario', style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 24),
@@ -239,14 +253,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               if (user?.role == 'admin') ...[
                 const SizedBox(height: 32),
-                const Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                const SizedBox(height: 16),
-                Container(
-                  height: 200,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                 Text('Distribución de Productos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground)),
+                 const SizedBox(height: 16),
+                 Container(
+                   height: 200,
+                   padding: const EdgeInsets.all(16),
+                   decoration: BoxDecoration(
+                     color: Theme.of(context).cardTheme.color ?? Colors.white,
+                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
                     ]
@@ -281,13 +295,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Últimos Movimientos',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                   Expanded(
+                     child: Text(
+                       'Últimos Movimientos',
+                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),
+                       overflow: TextOverflow.ellipsis,
+                     ),
+                   ),
                   if (user?.role == 'admin')
                     PopupMenuButton<String>(
                       child: Container(

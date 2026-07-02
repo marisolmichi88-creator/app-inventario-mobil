@@ -39,7 +39,7 @@ class MainLayout extends StatelessWidget {
       body: child,
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey.shade400,
         elevation: 8,
