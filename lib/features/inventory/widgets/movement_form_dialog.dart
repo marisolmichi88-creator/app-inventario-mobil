@@ -78,12 +78,16 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoading) {
-      return const AlertDialog(
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -93,117 +97,300 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
     final user = context.watch<AuthProvider>().currentUser;
 
     if (products.isEmpty || warehouses.isEmpty || user == null) {
-      return const AlertDialog(
-        content: Text('Debe registrar productos y almacenes activos primero.'),
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: const Center(child: Text('Debe registrar productos y almacenes activos primero.')),
       );
     }
 
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Registrar Movimiento', style: TextStyle(fontWeight: FontWeight.bold)),
-      content: Form(
-        key: formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Tipo de Movimiento'),
-                items: const [
-                  DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
-                  DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-                ],
-                onChanged: (val) => setState(() => type = val!),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                initialValue: selectedProductId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Producto'),
-                items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
-                onChanged: (val) => setState(() => selectedProductId = val),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                initialValue: selectedWarehouseId,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Almacén'),
-                items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis))).toList(),
-                onChanged: (val) => setState(() => selectedWarehouseId = val),
-              ),
-              const SizedBox(height: 16),
-              if (type == 'OUT' && projects.isNotEmpty) ...[
-                DropdownButtonFormField<int>(
-                  initialValue: selectedProjectId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Asignar a Proyecto (Obligatorio)'),
-                  items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
-                  onChanged: (val) => setState(() => selectedProjectId = val),
-                  validator: (val) => val == null ? 'Debe seleccionar un proyecto para la salida' : null,
-                ),
-                const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: quantityController,
-                decoration: const InputDecoration(labelText: 'Cantidad'),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v!.isEmpty) return 'Requerido';
-                  if (int.tryParse(v) == null || int.parse(v) <= 0) return 'Cantidad inválida';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: notesController,
-                decoration: const InputDecoration(labelText: 'Notas / Referencia (Opcional)'),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle drag indicator
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Registrar Movimiento',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface, letterSpacing: -0.5),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  color: Colors.grey,
+                ),
+              ],
+            ),
+          ),
+          
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDropdownField<String>(
+                      label: 'Tipo de Movimiento',
+                      icon: Icons.swap_vert,
+                      isDark: isDark,
+                      value: type,
+                      items: const [
+                        DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                      ],
+                      onChanged: (val) => setState(() => type = val!),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField<int>(
+                      label: 'Producto',
+                      icon: Icons.inventory_2_outlined,
+                      isDark: isDark,
+                      value: selectedProductId,
+                      items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
+                      onChanged: (val) => setState(() => selectedProductId = val),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField<int>(
+                      label: 'Almacén',
+                      icon: Icons.storefront_outlined,
+                      isDark: isDark,
+                      value: selectedWarehouseId,
+                      items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis))).toList(),
+                      onChanged: (val) => setState(() => selectedWarehouseId = val),
+                    ),
+                    const SizedBox(height: 16),
+                    if (type == 'OUT' && projects.isNotEmpty) ...[
+                      _buildDropdownField<int>(
+                        label: 'Proyecto (Obligatorio)',
+                        icon: Icons.assignment_outlined,
+                        isDark: isDark,
+                        value: selectedProjectId,
+                        items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
+                        onChanged: (val) => setState(() => selectedProjectId = val),
+                        validator: (val) => val == null ? 'Seleccione un proyecto' : null,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildFormField(
+                      controller: quantityController,
+                      label: 'Cantidad',
+                      hint: 'Ej. 10',
+                      icon: Icons.tag,
+                      isDark: isDark,
+                      isNumber: true,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFormField(
+                      controller: notesController,
+                      label: 'Notas / Referencia (Opcional)',
+                      hint: 'Ej. Orden de compra 123',
+                      icon: Icons.notes_outlined,
+                      isDark: isDark,
+                      maxLines: 2,
+                      isRequired: false,
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    Divider(color: Colors.grey.withValues(alpha: 0.2)),
+                    const SizedBox(height: 16),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.grey)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                final mov = MovementModel(
+                                  productId: selectedProductId!,
+                                  warehouseId: selectedWarehouseId!,
+                                  projectId: type == 'OUT' ? selectedProjectId : null,
+                                  userId: user.id!,
+                                  type: type,
+                                  quantity: int.parse(quantityController.text),
+                                  date: DateTime.now().toIso8601String(),
+                                  notes: notesController.text.trim(),
+                                );
+                                
+                                final success = await context.read<MovementsProvider>().registerMovement(mov);
+                                
+                                if (context.mounted) {
+                                  if (success) {
+                                    Navigator.pop(context, true);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Movimiento registrado con éxito.'), backgroundColor: Colors.green),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Stock insuficiente para realizar esta salida.'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: type == 'IN' ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.save_rounded, size: 20),
+                            label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    required bool isDark,
+    bool isNumber = false,
+    bool isRequired = true,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+      maxLines: maxLines,
+      validator: (val) {
+        if (isRequired && (val == null || val.isEmpty)) return 'Requerido';
+        if (isNumber && val != null && val.isNotEmpty) {
+          if (int.tryParse(val) == null || int.parse(val) <= 0) return 'Cantidad inválida';
+        }
+        return null;
+      },
+      style: TextStyle(
+        color: isDark ? Colors.white : Colors.black87,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.black54,
+          fontSize: 14,
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: type == 'IN' ? Colors.green : Colors.red),
-          onPressed: () async {
-            if (formKey.currentState!.validate()) {
-              final mov = MovementModel(
-                productId: selectedProductId!,
-                warehouseId: selectedWarehouseId!,
-                projectId: type == 'OUT' ? selectedProjectId : null,
-                userId: user.id!,
-                type: type,
-                quantity: int.parse(quantityController.text),
-                date: DateTime.now().toIso8601String(),
-                notes: notesController.text.trim(),
-              );
-              
-              final success = await context.read<MovementsProvider>().registerMovement(mov);
-              
-              if (context.mounted) {
-                if (success) {
-                  Navigator.pop(context, true); // Devuelve true si fue exitoso
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Movimiento registrado con éxito.'), backgroundColor: Colors.green),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Stock insuficiente para realizar esta salida.'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            }
-          },
-          child: const Text('Guardar'),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        filled: true,
+        fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
         ),
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
+    );
+  }
+
+  Widget _buildDropdownField<T>({
+    required String label,
+    required IconData icon,
+    required bool isDark,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+    String? Function(T?)? validator,
+  }) {
+    return DropdownButtonFormField<T>(
+      isExpanded: true,
+      initialValue: value,
+      items: items,
+      onChanged: onChanged,
+      validator: validator ?? (val) {
+        if (val == null) return 'Requerido';
+        return null;
+      },
+      style: TextStyle(
+        color: isDark ? Colors.white : Colors.black87,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.black54,
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        filled: true,
+        fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
     );
   }
 }

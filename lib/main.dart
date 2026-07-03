@@ -161,7 +161,7 @@ class _AppWithThemeState extends State<_AppWithTheme> {
         ),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF1959AD),
-          secondary: Color(0xFF38BDF8), // color-primary-light
+          secondary: Color(0xFF60A5FA), // color-primary-light
           surface: Color(0xFF1E293B),
           onSurface: Color(0xFFF1F5F9),
         ),
@@ -201,7 +201,7 @@ class _AppWithThemeState extends State<_AppWithTheme> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF60A5FA), width: 2),
           ),
         ),
         dialogTheme: DialogThemeData(
@@ -211,7 +211,7 @@ class _AppWithThemeState extends State<_AppWithTheme> {
           elevation: 0,
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: const Color(0xFF38BDF8),
+          backgroundColor: const Color(0xFF60A5FA),
           foregroundColor: const Color(0xFF0F172A),
           elevation: 2,
           shape: RoundedRectangleBorder(

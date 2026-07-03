@@ -63,4 +63,35 @@ class MovementsProvider with ChangeNotifier {
     await fetchMovements();
     return true;
   }
+
+  Future<bool> deleteMovement(MovementModel movement) async {
+    final db = await _dbHelper.database;
+    
+    if (movement.type == 'IN') {
+      final List<Map<String, dynamic>> prodMaps = await db.query(
+        'products',
+        where: 'id = ?',
+        whereArgs: [movement.productId],
+      );
+      
+      if (prodMaps.isNotEmpty) {
+        final currentStock = prodMaps.first['stock'] as int;
+        if (currentStock < movement.quantity) {
+          return false; // No hay stock suficiente para deshacer esta entrada
+        }
+      }
+    }
+
+    await db.delete('movements', where: 'id = ?', whereArgs: [movement.id]);
+    
+    final oppositeType = movement.type == 'IN' ? 'OUT' : 'IN';
+    await _productsProvider.updateStock(
+      movement.productId,
+      movement.quantity,
+      oppositeType,
+    );
+
+    await fetchMovements();
+    return true;
+  }
 }
