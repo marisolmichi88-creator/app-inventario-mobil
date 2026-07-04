@@ -8,7 +8,7 @@ class SyncService {
   Future<void> syncLocalDataToCloud() async {
     try {
       final db = await _dbHelper.database;
-      
+
       // Ejemplo: Sincronizar movimientos no sincronizados
       final unsyncedMovements = await db.query(
         'movements',
@@ -22,12 +22,12 @@ class SyncService {
       }
 
       // Nota: Implementar llamada HTTP al API MySQL
-      // Ejemplo: 
+      // Ejemplo:
       // final response = await http.post(
       //   Uri.parse('https://api.proenergim.com/sync/movements'),
       //   body: jsonEncode(unsyncedMovements),
       // );
-      
+
       // if (response.statusCode == 200) {
       //   // Actualizar estado local
       //   for (var mov in unsyncedMovements) {
@@ -39,9 +39,8 @@ class SyncService {
       //     );
       //   }
       // }
-
+      //
       debugPrint('Datos sincronizados (simulado).');
-
     } catch (e) {
       debugPrint('Error sincronizando datos: $e');
     }

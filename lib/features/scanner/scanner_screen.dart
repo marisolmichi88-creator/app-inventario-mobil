@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../core/theme/app_shadows.dart';
 import '../inventory/widgets/movement_form_dialog.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -19,7 +18,6 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   );
   
   bool _isProcessing = false;
-  bool _isBarcodeMode = false;
   late AnimationController _animationController;
 
   @override
@@ -72,13 +70,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final scanWindowWidth = _isBarcodeMode ? screenWidth * 0.85 : screenWidth * 0.7;
-    final scanWindowHeight = _isBarcodeMode ? 140.0 : screenWidth * 0.7;
-    
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
-    final activeTextColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final scanWindowSize = MediaQuery.of(context).size.width * 0.7;
     
     return Scaffold(
       backgroundColor: Colors.black,
@@ -118,11 +110,9 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                   ),
                 ),
                 Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    height: scanWindowHeight,
-                    width: scanWindowWidth,
+                  child: Container(
+                    height: scanWindowSize,
+                    width: scanWindowSize,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -135,25 +125,23 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
           // Bordes del escáner y animación láser
           Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              height: scanWindowHeight,
-              width: scanWindowWidth,
+            child: SizedBox(
+              height: scanWindowSize,
+              width: scanWindowSize,
               child: Stack(
                 children: [
                   // Esquinas decorativas
-                  _buildCorner(Alignment.topLeft, activeColor),
-                  _buildCorner(Alignment.topRight, activeColor),
-                  _buildCorner(Alignment.bottomLeft, activeColor),
-                  _buildCorner(Alignment.bottomRight, activeColor),
+                  _buildCorner(Alignment.topLeft),
+                  _buildCorner(Alignment.topRight),
+                  _buildCorner(Alignment.bottomLeft),
+                  _buildCorner(Alignment.bottomRight),
                   
                   // Animación de barrido (Láser rojo)
                   AnimatedBuilder(
                     animation: _animationController,
                     builder: (context, child) {
                       return Positioned(
-                        top: _animationController.value * (scanWindowHeight - 4),
+                        top: _animationController.value * (scanWindowSize - 4),
                         left: 0,
                         right: 0,
                         child: Container(
@@ -171,95 +159,18 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
             ),
           ),
           
-          // Selector de modo interactivo en la parte superior
-          Positioned(
-            top: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
-            left: 24,
-            right: 24,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() => _isBarcodeMode = false),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: !_isBarcodeMode ? activeColor : Colors.transparent,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.qr_code_2, color: !_isBarcodeMode ? activeTextColor : Colors.white54, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Modo QR',
-                              style: TextStyle(
-                                color: !_isBarcodeMode ? activeTextColor : Colors.white54,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () => setState(() => _isBarcodeMode = true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _isBarcodeMode ? activeColor : Colors.transparent,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.barcode_reader, color: _isBarcodeMode ? activeTextColor : Colors.white54, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Modo Barras',
-                              style: TextStyle(
-                                color: _isBarcodeMode ? activeTextColor : Colors.white54,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          Positioned(
+          const Positioned(
             bottom: 60,
             left: 0,
             right: 0,
             child: Column(
               children: [
-                const Icon(Icons.qr_code_scanner, color: Colors.white54, size: 40),
-                const SizedBox(height: 16),
+                Icon(Icons.qr_code_scanner, color: Colors.white54, size: 40),
+                SizedBox(height: 16),
                 Text(
-                  _isBarcodeMode ? 'Alinea el código de barras' : 'Alinea el código QR',
+                  'Alinea el código dentro del recuadro',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'El escaneo e identificación son automáticos',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -269,7 +180,7 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildCorner(Alignment alignment, Color color) {
+  Widget _buildCorner(Alignment alignment) {
     return Align(
       alignment: alignment,
       child: Container(
@@ -278,13 +189,13 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
         decoration: BoxDecoration(
           border: Border(
             top: (alignment == Alignment.topLeft || alignment == Alignment.topRight) 
-                ? BorderSide(color: color, width: 4) : BorderSide.none,
+                ? const BorderSide(color: Colors.blueAccent, width: 4) : BorderSide.none,
             bottom: (alignment == Alignment.bottomLeft || alignment == Alignment.bottomRight) 
-                ? BorderSide(color: color, width: 4) : BorderSide.none,
+                ? const BorderSide(color: Colors.blueAccent, width: 4) : BorderSide.none,
             left: (alignment == Alignment.topLeft || alignment == Alignment.bottomLeft) 
-                ? BorderSide(color: color, width: 4) : BorderSide.none,
+                ? const BorderSide(color: Colors.blueAccent, width: 4) : BorderSide.none,
             right: (alignment == Alignment.topRight || alignment == Alignment.bottomRight) 
-                ? BorderSide(color: color, width: 4) : BorderSide.none,
+                ? const BorderSide(color: Colors.blueAccent, width: 4) : BorderSide.none,
           ),
         ),
       ),
