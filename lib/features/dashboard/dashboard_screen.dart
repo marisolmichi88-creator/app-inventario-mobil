@@ -191,187 +191,209 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _showNotificationsBottomSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    bool animationCompleted = false;
     
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Consumer2<ProductsProvider, MovementsProvider>(
-          builder: (context, productsProvider, movementsProvider, child) {
-            final dismissedIds = productsProvider.dismissedAlertProductIds;
-            final activeCritical = productsProvider.products
-                .where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id))
-                .toList();
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            if (!animationCompleted) {
+              Future.delayed(const Duration(milliseconds: 250), () {
+                if (context.mounted) {
+                  setModalState(() {
+                    animationCompleted = true;
+                  });
+                }
+              });
+            }
 
-            final dismissedMovementIds = movementsProvider.dismissedMovementNotificationIds;
-            final activeMovements = movementsProvider.movements
-                .where((m) => !dismissedMovementIds.contains(m.id))
-                .take(10)
-                .toList();
+            return Consumer2<ProductsProvider, MovementsProvider>(
+              builder: (context, productsProvider, movementsProvider, child) {
+                final dismissedIds = productsProvider.dismissedAlertProductIds;
+                final activeCritical = productsProvider.products
+                    .where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id))
+                    .toList();
 
-            final totalActiveNotifications = activeCritical.length + activeMovements.length;
+                final dismissedMovementIds = movementsProvider.dismissedMovementNotificationIds;
+                final activeMovements = movementsProvider.movements
+                    .where((m) => !dismissedMovementIds.contains(m.id))
+                    .take(10)
+                    .toList();
 
-            return Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 24,
-                right: 24,
-                top: 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+                final totalActiveNotifications = activeCritical.length + activeMovements.length;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    left: 24,
+                    right: 24,
+                    top: 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Notificaciones',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Theme.of(context).colorScheme.onSurface,
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      if (totalActiveNotifications > 0)
-                        TextButton.icon(
-                          onPressed: () {
-                            if (activeCritical.isNotEmpty) {
-                              productsProvider.dismissAllAlerts(
-                                activeCritical.map((p) => p.id!).toList(),
-                              );
-                            }
-                            if (activeMovements.isNotEmpty) {
-                              movementsProvider.dismissAllMovementNotifications(
-                                activeMovements.map((m) => m.id!).toList(),
-                              );
-                            }
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.clear_all_rounded, size: 16, color: Colors.redAccent),
-                          label: const Text('Limpiar todo', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Notificaciones',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          if (totalActiveNotifications > 0 && animationCompleted)
+                            TextButton.icon(
+                              onPressed: () {
+                                if (activeCritical.isNotEmpty) {
+                                  productsProvider.dismissAllAlerts(
+                                    activeCritical.map((p) => p.id!).toList(),
+                                  );
+                                }
+                                if (activeMovements.isNotEmpty) {
+                                  movementsProvider.dismissAllMovementNotifications(
+                                    activeMovements.map((m) => m.id!).toList(),
+                                  );
+                                }
+                                Navigator.pop(context);
+                              },
+                              icon: const Icon(Icons.clear_all_rounded, size: 16, color: Colors.redAccent),
+                              label: const Text('Limpiar todo', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            )
+                          else
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (!animationCompleted)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(
+                            child: CircularProgressIndicator(),
                           ),
                         )
-                      else
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
+                      else if (totalActiveNotifications == 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.notifications_active_outlined,
+                                  size: 48,
+                                  color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No tienes notificaciones pendientes',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'No hay alertas de stock ni movimientos recientes.',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else ...[
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height * 0.5,
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (activeMovements.isNotEmpty) ...[
+                                  Text(
+                                    'Movimientos recientes',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ListView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: activeMovements.length,
+                                    itemBuilder: (context, index) {
+                                      final mov = activeMovements[index];
+                                      final prod = productsProvider.products.firstWhere(
+                                        (p) => p.id == mov.productId,
+                                        orElse: () => ProductModel(id: -1, name: 'Producto Desconocido', code: 'N/A'),
+                                      );
+                                      return _buildMovementAlertItem(context, mov, prod, movementsProvider, isDark);
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                if (activeCritical.isNotEmpty) ...[
+                                  Text(
+                                    'Alertas de stock crítico',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ListView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: activeCritical.length,
+                                    itemBuilder: (context, index) {
+                                      final prod = activeCritical[index];
+                                      return _buildStockAlertItem(context, prod, productsProvider, isDark);
+                                    },
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  if (totalActiveNotifications == 0)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.notifications_active_outlined,
-                              size: 48,
-                              color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No tienes notificaciones pendientes',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'No hay alertas de stock ni movimientos recientes.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else ...[
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.5,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (activeMovements.isNotEmpty) ...[
-                              Text(
-                                'Movimientos recientes',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: activeMovements.length,
-                                itemBuilder: (context, index) {
-                                  final mov = activeMovements[index];
-                                  final prod = productsProvider.products.firstWhere(
-                                    (p) => p.id == mov.productId,
-                                    orElse: () => ProductModel(id: -1, name: 'Producto Desconocido', code: 'N/A'),
-                                  );
-                                  return _buildMovementAlertItem(context, mov, prod, movementsProvider, isDark);
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            if (activeCritical.isNotEmpty) ...[
-                              Text(
-                                'Alertas de stock crítico',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: activeCritical.length,
-                                itemBuilder: (context, index) {
-                                  final prod = activeCritical[index];
-                                  return _buildStockAlertItem(context, prod, productsProvider, isDark);
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                );
+              },
             );
           },
         );
