@@ -7,7 +7,23 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  static Function(String?)? onNotificationClick;
+  static String? _pendingPayload;
+  static Function(String?)? _onNotificationClick;
+
+  static Function(String?)? get onNotificationClick => _onNotificationClick;
+
+  static set onNotificationClick(Function(String?)? callback) {
+    _onNotificationClick = callback;
+    if (callback != null && _pendingPayload != null) {
+      final payload = _pendingPayload;
+      _pendingPayload = null;
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_onNotificationClick != null) {
+          _onNotificationClick!(payload);
+        }
+      });
+    }
+  }
 
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -20,8 +36,10 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (onNotificationClick != null) {
-          onNotificationClick!(response.payload);
+        if (_onNotificationClick != null) {
+          _onNotificationClick!(response.payload);
+        } else {
+          _pendingPayload = response.payload;
         }
       },
     );
