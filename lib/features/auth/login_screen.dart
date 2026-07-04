@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: SvgPicture.asset(
-                          'assets/icon.svg', 
+                          'assets/icon-proenergim.svg', 
                           height: 120, 
                           width: 120, 
                           fit: BoxFit.contain,
@@ -96,8 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'El correo es obligatorio';
-                      if (!value.contains('@')) return 'Ingrese un correo válido';
+                      if (value == null || value.isEmpty) return 'Por favor colocar su correo electrónico';
+                      if (!value.contains('@')) return 'Por favor colocar un correo electrónico válido';
                       return null;
                     },
                   ),
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     obscureText: true,
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
+                      if (value == null || value.isEmpty) return 'Por favor ingresar contraseña';
                       return null;
                     },
                   ),
@@ -149,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                                 if (!success) {
                                   setState(() {
-                                    _errorMessage = 'Correo o contraseña incorrectos';
+                                    _errorMessage = 'Contraseña incorrecta';
                                   });
                                 }
                               } catch (e) {

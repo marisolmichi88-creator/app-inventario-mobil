@@ -51,15 +51,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  Widget _buildStockAlertItem(BuildContext context, ProductModel prod, ProductsProvider provider, bool isDark) {
+  Widget _buildStockAlertItem(
+    BuildContext context,
+    ProductModel prod,
+    ProductsProvider provider,
+    bool isDark,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
+        color: isDark
+            ? const Color(0xFF1E293B)
+            : Colors.red.shade50.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
+          color: isDark
+              ? Colors.red.withValues(alpha: 0.2)
+              : Colors.red.shade100,
         ),
       ),
       child: Row(
@@ -92,10 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 2),
                 Text(
                   'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -116,22 +122,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMovementAlertItem(BuildContext context, MovementModel mov, ProductModel prod, MovementsProvider provider, bool isDark) {
+  Widget _buildMovementAlertItem(
+    BuildContext context,
+    MovementModel mov,
+    ProductModel prod,
+    MovementsProvider provider,
+    bool isDark,
+  ) {
     final isEntry = mov.type == 'IN';
-    final typeColor = isEntry ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
-    
+    final typeColor = isEntry
+        ? const Color(0xFF16A34A)
+        : const Color(0xFFDC2626);
+
     DateTime parsedDate = DateTime.tryParse(mov.date) ?? DateTime.now();
-    String formattedDate = DateFormat('dd/MM/yyyy • hh:mm a').format(parsedDate);
+    String formattedDate = DateFormat(
+      'dd/MM/yyyy • hh:mm a',
+    ).format(parsedDate);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : (isEntry ? Colors.green.shade50 : Colors.red.shade50).withValues(alpha: 0.3),
+        color: isDark
+            ? const Color(0xFF1E293B)
+            : (isEntry ? Colors.green.shade50 : Colors.red.shade50).withValues(
+                alpha: 0.3,
+              ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark 
-              ? typeColor.withValues(alpha: 0.2) 
+          color: isDark
+              ? typeColor.withValues(alpha: 0.2)
               : (isEntry ? Colors.green.shade100 : Colors.red.shade100),
         ),
       ),
@@ -144,7 +164,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isEntry ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              isEntry
+                  ? Icons.arrow_downward_rounded
+                  : Icons.arrow_upward_rounded,
               color: typeColor,
               size: 20,
             ),
@@ -165,10 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 2),
                 Text(
                   'Cantidad: ${mov.quantity} | $formattedDate',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -192,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showNotificationsBottomSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool animationCompleted = false;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -214,21 +233,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
               builder: (context, productsProvider, movementsProvider, child) {
                 final dismissedIds = productsProvider.dismissedAlertProductIds;
                 final activeCritical = productsProvider.products
-                    .where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id))
+                    .where(
+                      (p) =>
+                          p.stock <= p.minStock && !dismissedIds.contains(p.id),
+                    )
                     .toList();
 
-                final dismissedMovementIds = movementsProvider.dismissedMovementNotificationIds;
+                final dismissedMovementIds =
+                    movementsProvider.dismissedMovementNotificationIds;
                 final activeMovements = movementsProvider.movements
                     .where((m) => !dismissedMovementIds.contains(m.id))
                     .take(10)
                     .toList();
 
-                final totalActiveNotifications = activeCritical.length + activeMovements.length;
+                final totalActiveNotifications =
+                    activeCritical.length + activeMovements.length;
 
                 return Container(
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
                   ),
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -262,7 +288,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
-                          if (totalActiveNotifications > 0 && animationCompleted)
+                          if (totalActiveNotifications > 0 &&
+                              animationCompleted)
                             TextButton.icon(
                               onPressed: () {
                                 if (activeCritical.isNotEmpty) {
@@ -271,16 +298,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 }
                                 if (activeMovements.isNotEmpty) {
-                                  movementsProvider.dismissAllMovementNotifications(
-                                    activeMovements.map((m) => m.id!).toList(),
-                                  );
+                                  movementsProvider
+                                      .dismissAllMovementNotifications(
+                                        activeMovements
+                                            .map((m) => m.id!)
+                                            .toList(),
+                                      );
                                 }
                                 Navigator.pop(context);
                               },
-                              icon: const Icon(Icons.clear_all_rounded, size: 16, color: Colors.redAccent),
-                              label: const Text('Limpiar todo', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                              icon: const Icon(
+                                Icons.clear_all_rounded,
+                                size: 16,
+                                color: Colors.redAccent,
+                              ),
+                              label: const Text(
+                                'Limpiar todo',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 13,
+                                ),
+                              ),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
@@ -306,17 +348,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   child: CircularProgressIndicator(
                                     strokeWidth: 3.2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                                      isDark
+                                          ? const Color(0xFF60A5FA)
+                                          : const Color(0xFF1959AD),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Buscando alertas...',
+                                  'Caegando notificaciones...',
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -333,7 +379,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Icon(
                                   Icons.notifications_active_outlined,
                                   size: 48,
-                                  color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                                  color: isDark
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade300,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -341,13 +389,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 const Text(
                                   'No hay alertas de stock ni movimientos recientes.',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                               ],
                             ),
@@ -368,22 +421,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
                                       letterSpacing: 0.5,
                                     ),
                                   ),
                                   const SizedBox(height: 10),
                                   ListView.builder(
                                     shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     itemCount: activeMovements.length,
                                     itemBuilder: (context, index) {
                                       final mov = activeMovements[index];
-                                      final prod = productsProvider.products.firstWhere(
-                                        (p) => p.id == mov.productId,
-                                        orElse: () => ProductModel(id: -1, name: 'Producto Desconocido', code: 'N/A'),
+                                      final prod = productsProvider.products
+                                          .firstWhere(
+                                            (p) => p.id == mov.productId,
+                                            orElse: () => ProductModel(
+                                              id: -1,
+                                              name: 'Producto Desconocido',
+                                              code: 'N/A',
+                                            ),
+                                          );
+                                      return _buildMovementAlertItem(
+                                        context,
+                                        mov,
+                                        prod,
+                                        movementsProvider,
+                                        isDark,
                                       );
-                                      return _buildMovementAlertItem(context, mov, prod, movementsProvider, isDark);
                                     },
                                   ),
                                   const SizedBox(height: 16),
@@ -394,18 +461,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      color: isDark
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade600,
                                       letterSpacing: 0.5,
                                     ),
                                   ),
                                   const SizedBox(height: 10),
                                   ListView.builder(
                                     shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     itemCount: activeCritical.length,
                                     itemBuilder: (context, index) {
                                       final prod = activeCritical[index];
-                                      return _buildStockAlertItem(context, prod, productsProvider, isDark);
+                                      return _buildStockAlertItem(
+                                        context,
+                                        prod,
+                                        productsProvider,
+                                        isDark,
+                                      );
                                     },
                                   ),
                                 ],
@@ -449,22 +524,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        prefixIcon: Icon(
+          icon,
+          color: isDark ? Colors.grey.shade400 : Colors.black87,
+          size: 20,
+        ),
         filled: true,
         fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         floatingLabelBehavior: FloatingLabelBehavior.always,
       ),
     );
@@ -473,8 +559,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showProfileBottomSheet(BuildContext context, dynamic user) {
     if (user == null) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
-    
+    final actionColor = isDark
+        ? const Color(0xFF60A5FA)
+        : const Color(0xFF1959AD);
+
     final nameController = TextEditingController(text: user.name);
     final emailController = TextEditingController(text: user.email);
     final formKey = GlobalKey<FormState>();
@@ -490,7 +578,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -518,8 +608,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (!isEditing) ...[
                         CircleAvatar(
                           radius: 36,
-                          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
-                          child: Icon(Icons.person, size: 40, color: actionColor),
+                          backgroundColor: isDark
+                              ? const Color(0xFF1E293B)
+                              : Colors.grey.shade200,
+                          child: Icon(
+                            Icons.person,
+                            size: 40,
+                            color: actionColor,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -541,9 +637,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: (user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withValues(alpha: 0.12),
+                            color:
+                                (user.role == 'admin'
+                                        ? const Color(0xFF8B5CF6)
+                                        : const Color(0xFF10B981))
+                                    .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -551,32 +654,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981),
+                              color: user.role == 'admin'
+                                  ? const Color(0xFF8B5CF6)
+                                  : const Color(0xFF10B981),
                             ),
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setModalState(() {
-                                isEditing = true;
-                              });
-                            },
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: actionColor,
-                              foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 0,
+                        if (user.role == 'admin') ...[
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setModalState(() {
+                                  isEditing = true;
+                                });
+                              },
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text(
+                                'Editar Perfil',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: actionColor,
+                                foregroundColor: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ] else ...[
                         Text(
                           'Editar Perfil',
@@ -593,7 +707,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           hint: 'Nombre y Apellido',
                           icon: Icons.person_outline,
                           isDark: isDark,
-                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+                          validator: (val) =>
+                              val == null || val.isEmpty ? 'Requerido' : null,
                         ),
                         const SizedBox(height: 16),
                         _buildProfileFormField(
@@ -623,8 +738,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   });
                                 },
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                                 child: Text(
                                   'Cancelar',
@@ -641,21 +760,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
-                                    await context.read<AuthProvider>().updateProfile(
-                                      nameController.text.trim(),
-                                      emailController.text.trim().toLowerCase(),
-                                    );
+                                    await context
+                                        .read<AuthProvider>()
+                                        .updateProfile(
+                                          nameController.text.trim(),
+                                          emailController.text
+                                              .trim()
+                                              .toLowerCase(),
+                                        );
                                     if (context.mounted) {
-                                      CustomSnackBar.showSuccess(context, 'Perfil actualizado');
+                                      CustomSnackBar.showSuccess(
+                                        context,
+                                        'Perfil actualizado',
+                                      );
                                       Navigator.pop(context);
                                     }
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: actionColor,
-                                  foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  foregroundColor: isDark
+                                      ? const Color(0xFF0F172A)
+                                      : Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   elevation: 0,
                                 ),
                                 child: const Text(
@@ -695,13 +827,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((p) => p.stock <= p.minStock)
         .length;
     final activeStockAlertsCount = products
-        .where((p) => p.stock <= p.minStock && !productsProvider.dismissedAlertProductIds.contains(p.id))
+        .where(
+          (p) =>
+              p.stock <= p.minStock &&
+              !productsProvider.dismissedAlertProductIds.contains(p.id),
+        )
         .length;
     final activeMovementAlertsCount = movementsProvider.movements
-        .where((m) => !movementsProvider.dismissedMovementNotificationIds.contains(m.id))
+        .where(
+          (m) => !movementsProvider.dismissedMovementNotificationIds.contains(
+            m.id,
+          ),
+        )
         .take(10)
         .length;
-    final activeAlertsCount = activeStockAlertsCount + activeMovementAlertsCount;
+    final activeAlertsCount =
+        activeStockAlertsCount + activeMovementAlertsCount;
     final normalStockProducts = totalProducts - lowStockProducts;
     final totalValuePEN = products
         .where((p) => p.currency == 'PEN')
@@ -713,8 +854,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final recentMovements = movementsProvider.movements.take(2).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
-    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200;
+    final actionColor = isDark
+        ? const Color(0xFF60A5FA)
+        : const Color(0xFF1959AD);
+    final dividerColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.grey.shade200;
 
     return Scaffold(
       backgroundColor: isDark
@@ -781,8 +926,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0, left: 8.0),
               child: CircleAvatar(
-                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
-                child: Icon(Icons.person, color: isDark ? Colors.white70 : Colors.grey),
+                backgroundColor: isDark
+                    ? const Color(0xFF1E293B)
+                    : Colors.grey.shade200,
+                child: Icon(
+                  Icons.person,
+                  color: isDark ? Colors.white70 : Colors.grey,
+                ),
               ),
             ),
           ),
@@ -923,7 +1073,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onTap: () => context.push('/movements'),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Divider(height: 1, color: dividerColor),
                   ),
                   ThemeToggleTile(
@@ -931,7 +1084,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onChanged: themeProvider.toggleTheme,
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Divider(height: 1, color: dividerColor),
                   ),
                   _buildDrawerItem(
@@ -1228,7 +1384,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMainValueCard(BuildContext context, double totalValuePEN, double totalValueUSD) {
+  Widget _buildMainValueCard(
+    BuildContext context,
+    double totalValuePEN,
+    double totalValueUSD,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
@@ -1475,7 +1635,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: AppShadows.card(isDark: isDark)
+        boxShadow: AppShadows.card(isDark: isDark),
       ),
       child: Column(
         children: [
@@ -1494,7 +1654,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ? [
                               PieChartSectionData(
                                 value: 1,
-                                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                color: isDark
+                                    ? Colors.grey.shade800
+                                    : Colors.grey.shade200,
                                 title: '',
                                 radius: 18,
                               ),
@@ -1533,7 +1695,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -1548,11 +1712,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildChartLegend('Crítico', critical, criticalPct, const Color(0xFFEF4444), Theme.of(context).colorScheme.onSurface, isDark),
+                child: _buildChartLegend(
+                  'Crítico',
+                  critical,
+                  criticalPct,
+                  const Color(0xFFEF4444),
+                  Theme.of(context).colorScheme.onSurface,
+                  isDark,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildChartLegend('Normal', normal, normalPct, const Color(0xFF10B981), Theme.of(context).colorScheme.onSurface, isDark),
+                child: _buildChartLegend(
+                  'Normal',
+                  normal,
+                  normalPct,
+                  const Color(0xFF10B981),
+                  Theme.of(context).colorScheme.onSurface,
+                  isDark,
+                ),
               ),
             ],
           ),
@@ -1561,11 +1739,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildChartLegend(String label, int count, double pct, Color color, Color textColor, bool isDark) {
+  Widget _buildChartLegend(
+    String label,
+    int count,
+    double pct,
+    Color color,
+    Color textColor,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.3) : Colors.grey.shade50,
+        color: isDark
+            ? const Color(0xFF0F172A).withValues(alpha: 0.3)
+            : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
@@ -1579,10 +1766,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
@@ -1630,7 +1814,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildEmptyMovementsCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+    final actionColor = isDark
+        ? const Color(0xFF60A5FA)
+        : const Color(0xFF1959AD);
     final textColor = isDark ? const Color(0xFF0F172A) : Colors.white;
 
     return Container(
@@ -1650,11 +1836,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: actionColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.history_rounded,
-              color: actionColor,
-              size: 40,
-            ),
+            child: Icon(Icons.history_rounded, color: actionColor, size: 40),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1678,16 +1860,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ElevatedButton.icon(
             onPressed: () => context.push('/movements?showForm=true'),
             style: ElevatedButton.styleFrom(
-               backgroundColor: actionColor,
-               foregroundColor: textColor,
-               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-               elevation: 0,
+              backgroundColor: actionColor,
+              foregroundColor: textColor,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
             ),
             icon: const Icon(Icons.add, size: 18),
             label: const Text(
-               'Nuevo Movimiento',
-               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              'Nuevo Movimiento',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
@@ -1706,7 +1890,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = textColor ?? Theme.of(context).colorScheme.onSurface;
-    final iColor = iconColor ?? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD));
+    final iColor =
+        iconColor ??
+        (isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD));
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1720,8 +1906,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: Icon(icon, color: iColor, size: 20),
       ),
-      title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 14)),
-      trailing: showTrailing ? Icon(Icons.chevron_right, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 20) : null,
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+      ),
+      trailing: showTrailing
+          ? Icon(
+              Icons.chevron_right,
+              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+              size: 20,
+            )
+          : null,
       onTap: () {
         Navigator.pop(context);
         onTap();

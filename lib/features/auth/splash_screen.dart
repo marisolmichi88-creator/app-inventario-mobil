@@ -21,7 +21,7 @@ class SplashScreen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: SvgPicture.asset(
-                  'assets/icon.svg', 
+                  'assets/icon-proenergim.svg', 
                   height: 120, 
                   width: 120, 
                   fit: BoxFit.contain,
