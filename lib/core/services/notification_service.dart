@@ -7,6 +7,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
+  static Function(String?)? onNotificationClick;
+
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -15,13 +17,27 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await _notificationsPlugin.initialize(initializationSettings);
+    await _notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (onNotificationClick != null) {
+          onNotificationClick!(response.payload);
+        }
+      },
+    );
 
     // Request permissions for Android 13+
     final androidImplementation = _notificationsPlugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (androidImplementation != null) {
       await androidImplementation.requestNotificationsPermission();
+    }
+  }
+
+  Future<void> checkLaunchNotification(Function(String?) onLaunch) async {
+    final details = await _notificationsPlugin.getNotificationAppLaunchDetails();
+    if (details != null && details.didNotificationLaunchApp) {
+      onLaunch(details.notificationResponse?.payload);
     }
   }
 
@@ -48,6 +64,7 @@ class NotificationService {
       title,
       body,
       platformDetails,
+      payload: 'open_notifications',
     );
   }
 }

@@ -13,6 +13,7 @@ import '../../core/widgets/theme_toggle_tile.dart';
 import '../../core/widgets/custom_snackbar.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/movement_model.dart';
+import '../../core/services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,7 +30,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<ProductsProvider>().fetchProducts();
       context.read<MovementsProvider>().fetchMovements();
       context.read<CategoriesProvider>().fetchCategories();
+
+      NotificationService.onNotificationClick = (payload) {
+        if (payload == 'open_notifications' && mounted) {
+          _showNotificationsBottomSheet(context);
+        }
+      };
+
+      NotificationService().checkLaunchNotification((payload) {
+        if (payload == 'open_notifications' && mounted) {
+          _showNotificationsBottomSheet(context);
+        }
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    NotificationService.onNotificationClick = null;
+    super.dispose();
   }
 
   Widget _buildStockAlertItem(BuildContext context, ProductModel prod, ProductsProvider provider, bool isDark) {
