@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../core/database/database_helper.dart';
 import '../models/product_model.dart';
+import '../../core/services/notification_service.dart';
 
 class ProductsProvider with ChangeNotifier {
   List<ProductModel> _products = [];
@@ -62,6 +63,15 @@ class ProductsProvider with ChangeNotifier {
         where: 'id = ?',
         whereArgs: [productId],
       );
+      
+      if (type == 'OUT' && newStock <= currentProduct.minStock) {
+        NotificationService().showNotification(
+          id: productId,
+          title: '⚠️ Alerta de Stock Crítico',
+          body: 'El producto "${currentProduct.name}" ha quedado con stock de $newStock (mínimo: ${currentProduct.minStock}).',
+        );
+      }
+      
       await fetchProducts();
     }
   }
@@ -75,5 +85,37 @@ class ProductsProvider with ChangeNotifier {
       whereArgs: [id],
     );
     await fetchProducts();
+  }
+
+  Future<bool> deleteProduct(int id) async {
+    final db = await _dbHelper.database;
+    
+    // Verificar si el producto tiene movimientos registrados
+    final List<Map<String, dynamic>> movementMaps = await db.query(
+      'movements',
+      where: 'productId = ?',
+      whereArgs: [id],
+    );
+    
+    if (movementMaps.isNotEmpty) {
+      // Si tiene movimientos, desactivarlo en lugar de borrarlo
+      await db.update(
+        'products',
+        {'isActive': 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await fetchProducts();
+      return false; // Retornar false indicando que no se eliminó físicamente, sino que se desactivó
+    }
+    
+    // Si no tiene movimientos, borrarlo físicamente
+    await db.delete(
+      'products',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await fetchProducts();
+    return true; // Retornar true indicando eliminación física exitosa
   }
 }

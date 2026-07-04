@@ -4,6 +4,7 @@ import 'package:printing/printing.dart';
 import '../../data/models/movement_model.dart';
 import '../../data/models/product_model.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 class PdfService {
   static Future<void> generateAndPrintMovementsReport(
@@ -11,8 +12,6 @@ class PdfService {
     List<ProductModel> products,
   ) async {
     final pdf = pw.Document();
-
-    // Using default font for simplicity
 
     // Convertir a tabla de datos
     final tableHeaders = ['Fecha', 'Producto', 'Tipo', 'Cantidad', 'Nota'];
@@ -130,38 +129,97 @@ class PdfService {
     bool isBarcode = false,
   }) async {
     final pdf = pw.Document();
+    final now = DateTime.now();
+    final weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    final String dayName = weekdays[now.weekday % 7];
+    final String formattedDateTime = "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
 
-    // Crear una cuadrícula para pegatinas. Asumimos 3 columnas x 5 filas por hoja.
+    // Intentar cargar la imagen del logo desde assets
+    pw.MemoryImage? logoImage;
+    try {
+      final ByteData logoData = await rootBundle.load('assets/icon.png');
+      final Uint8List logoBytes = logoData.buffer.asUint8List();
+      logoImage = pw.MemoryImage(logoBytes);
+    } catch (e) {
+      logoImage = null;
+    }
+
+    int crossAxisCount = 3;
+    if (products.length == 1) {
+      crossAxisCount = 1;
+    } else if (products.length == 2) {
+      crossAxisCount = 2;
+    } else if (products.length == 3) {
+      crossAxisCount = 1;
+    } else if (products.length == 4 || products.length == 5) {
+      crossAxisCount = 2;
+    } else {
+      crossAxisCount = 3;
+    }
+
+    // Configurar dimensiones de los stickers según la cantidad de columnas y el total
+    double cardHeight = 110;
+    double cardWidth = 140;
+    double barcodeHeight = 32;
+    double barcodeWidth = 100;
+    double qrSize = 42;
+    double nameFontSize = 9;
+
+    if (products.length == 1) {
+      cardHeight = 220;
+      cardWidth = 320;
+      barcodeHeight = 80;
+      barcodeWidth = 240;
+      qrSize = 120;
+      nameFontSize = 16;
+    } else if (crossAxisCount == 1) {
+      // Para 3 productos en una sola columna
+      cardHeight = 150;
+      cardWidth = 220;
+      barcodeHeight = 50;
+      barcodeWidth = 160;
+      qrSize = 75;
+      nameFontSize = 11;
+    } else if (crossAxisCount == 2) {
+      cardHeight = 135;
+      cardWidth = 175;
+      barcodeHeight = 40;
+      barcodeWidth = 135;
+      qrSize = 55;
+      nameFontSize = 11;
+    }
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
+        margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
-          final List<pw.Widget> items = products.map((prod) {
+          // Construir los stickers
+          final List<pw.Widget> items = products.map<pw.Widget>((prod) {
             return pw.Container(
-              width: 150,
-              height: 120,
+              height: cardHeight,
+              width: cardWidth,
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.grey300),
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
-              padding: const pw.EdgeInsets.all(8),
+              padding: const pw.EdgeInsets.all(10),
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
                   pw.Text(
-                    prod.name,
-                    style: const pw.TextStyle(
+                    prod.name.toUpperCase(),
+                    style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
-                      fontSize: 10,
+                      fontSize: nameFontSize,
                     ),
                     maxLines: 2,
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 4),
+                  pw.SizedBox(height: 8),
                   pw.SizedBox(
-                    height: isBarcode ? 40 : 60,
-                    width: isBarcode ? 120 : 60,
+                    height: isBarcode ? barcodeHeight : qrSize,
+                    width: isBarcode ? barcodeWidth : qrSize,
                     child: pw.BarcodeWidget(
                       color: PdfColors.black,
                       barcode: isBarcode
@@ -171,7 +229,7 @@ class PdfService {
                       drawText: false,
                     ),
                   ),
-                  pw.SizedBox(height: 4),
+                  pw.SizedBox(height: 8),
                   pw.Text(
                     'SKU: ${prod.code}',
                     style: const pw.TextStyle(
@@ -184,18 +242,115 @@ class PdfService {
             );
           }).toList();
 
-          return [
-            pw.Text(
-              'Etiquetas de Inventario - Proenergim',
-              style: const pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blue900,
+          // Dividir en filas para la cuadrícula
+          final List<pw.Widget> gridRows = [];
+          for (int i = 0; i < items.length; i += crossAxisCount) {
+            final end = (i + crossAxisCount < items.length) ? i + crossAxisCount : items.length;
+            final rowItems = items.sublist(i, end);
+            
+            // Rellenar la fila si faltan elementos para mantener la proporción de columnas
+            while (rowItems.length < crossAxisCount) {
+              rowItems.add(pw.Opacity(opacity: 0.0, child: pw.Container(height: 1)));
+            }
+
+            gridRows.add(
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: rowItems.map((item) => pw.Expanded(
+                  child: pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    child: pw.Center(child: item),
+                  ),
+                )).toList(),
               ),
+            );
+          }
+
+          return [
+            // Cabecera alineada y con logo
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.SizedBox(width: 45), // Espaciador de balance para el logo
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        'Etiquetas de Inventario',
+                        style: const pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'PROENERGIM',
+                        style: const pw.TextStyle(
+                          fontSize: 11,
+                          color: PdfColors.grey700,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (logoImage != null)
+                  pw.Container(
+                    width: 45,
+                    height: 45,
+                    child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                  )
+                else
+                  pw.Container(
+                    width: 45,
+                    height: 45,
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.blue900,
+                      shape: pw.BoxShape.circle,
+                    ),
+                    alignment: pw.Alignment.center,
+                    child: pw.Text(
+                      'PE',
+                      style: const pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                      ),
+                    ),
+                  ),
+              ],
             ),
+            pw.SizedBox(height: 16),
+            pw.Divider(color: PdfColors.blue900, thickness: 1),
             pw.SizedBox(height: 20),
-            pw.Wrap(spacing: 10, runSpacing: 10, children: items),
+
+            // Cuadrícula de stickers
+            ...gridRows,
           ];
+        },
+        footer: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Generado el: $formattedDateTime',
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Text(
+                    'Página ${context.pageNumber} de ${context.pagesCount}',
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+            ],
+          );
         },
       ),
     );

@@ -37,7 +37,7 @@ class MainLayout extends StatelessWidget {
       body: child,
       bottomNavigationBar: NavigationBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 8,
+        elevation: 2,
         selectedIndex: _calculateSelectedIndex(context),
         onDestinationSelected: (index) => _onItemTapped(index, context),
         destinations: const [

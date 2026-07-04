@@ -8,6 +8,8 @@ import '../../data/providers/theme_provider.dart';
 import '../../data/providers/categories_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/theme_toggle_tile.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -25,6 +27,261 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<MovementsProvider>().fetchMovements();
       context.read<CategoriesProvider>().fetchCategories();
     });
+  }
+
+  void _showNotificationsBottomSheet(BuildContext context, List<ProductModel> criticalProducts) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Notificaciones',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cerrar'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (criticalProducts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.notifications_active_outlined,
+                          size: 48,
+                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No tienes notificaciones pendientes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Todos tus productos tienen stock suficiente.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Text(
+                  'Alertas de inventario',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: criticalProducts.length,
+                    itemBuilder: (context, index) {
+                      final prod = criticalProducts[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    prod.name,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showProfileBottomSheet(BuildContext context, dynamic user) {
+    if (user == null) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
+                child: Icon(Icons.person, size: 40, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                user.name,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user.email,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  user.role == 'admin' ? 'Administrador' : 'Operador',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.read<AuthProvider>().logout();
+                    context.go('/login');
+                  },
+                  icon: const Icon(Icons.logout, color: Colors.red),
+                  label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -49,6 +306,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final recentMovements = movementsProvider.movements.take(2).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
 
     return Scaffold(
       backgroundColor: isDark
@@ -69,20 +327,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () {},
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.notifications_none_rounded,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                onPressed: () => _showNotificationsBottomSheet(context, products.where((p) => p.stock <= p.minStock).toList()),
+              ),
+              if (lowStockProducts > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$lowStockProducts',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
-            child: CircleAvatar(
-              backgroundColor: Colors.grey.shade200,
-              child: const Icon(Icons.person, color: Colors.grey),
+          GestureDetector(
+            onTap: () => _showProfileBottomSheet(context, user),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+              child: CircleAvatar(
+                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
+                child: Icon(Icons.person, color: isDark ? Colors.white70 : Colors.grey),
+              ),
             ),
           ),
         ],
       ),
       drawer: Drawer(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         child: ListView(
           padding: EdgeInsets.zero,
@@ -187,22 +482,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Divider(color: Colors.black12, height: 1),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        'EXTRAS',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
+                      child: Divider(height: 1),
                     ),
                     _buildDrawerItem(
                       context: context,
@@ -215,7 +495,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Divider(color: Colors.black12, height: 1),
+                      child: Divider(height: 1),
                     ),
                   ],
                   _buildDrawerItem(
@@ -232,42 +512,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(color: Colors.black12, height: 1),
+                    child: Divider(height: 1),
                   ),
-                  SwitchListTile(
-                    dense: true,
-                    visualDensity: const VisualDensity(vertical: -2),
-                    secondary: Icon(
-                      themeProvider.isDarkMode
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined,
-                      color: isDark ? Colors.white : const Color(0xFF1959AD),
-                      size: 22,
-                    ),
-                    title: Text(
-                      themeProvider.isDarkMode ? 'Modo Claro' : 'Modo Oscuro',
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF334155),
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    value: themeProvider.isDarkMode,
-                    onChanged: (bool value) {
-                      themeProvider.toggleTheme(value);
-                    },
-                    activeTrackColor:
-                        (isDark
-                                ? const Color(0xFF38BDF8)
-                                : const Color(0xFF1959AD))
-                            .withValues(alpha: 0.5),
-                    activeThumbColor: isDark
-                        ? const Color(0xFF38BDF8)
-                        : const Color(0xFF1959AD),
+                  ThemeToggleTile(
+                    isDarkMode: themeProvider.isDarkMode,
+                    onChanged: themeProvider.toggleTheme,
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(color: Colors.black12, height: 1),
+                    child: Divider(height: 1),
                   ),
                   _buildDrawerItem(
                     context: context,
@@ -395,10 +648,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     TextButton(
                       onPressed: () => context.push('/products'),
-                      child: const Text(
+                      child: Text(
                         'Ver detalles',
                         style: TextStyle(
-                          color: Color(0xFF0EA5E9),
+                          color: actionColor,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -420,12 +673,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Últimos movimientos',
+                      'Últimos Movimientos',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   TextButton(
@@ -433,10 +687,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Ver todos',
                           style: TextStyle(
-                            color: Color(0xFF0EA5E9),
+                            color: actionColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -445,9 +699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF38BDF8)
-                                  : const Color(0xFF1959AD),
+                              color: actionColor,
                               shape: BoxShape.circle,
                             ),
                             child: Text(
@@ -576,13 +828,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: AppShadows.tinted(const Color(0xFF3B82F6), alpha: 0.12),
       ),
       child: Stack(
         children: [
@@ -708,13 +954,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadows.card(isDark: isDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -789,146 +1029,224 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double normalPct = total > 0 ? (normal / total) * 100 : 0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ]
+        boxShadow: AppShadows.card(isDark: isDark)
       ),
-      child: Row(
+      child: Column(
         children: [
-          SizedBox(
-            width: 140,
-            height: 140,
-            child: Stack(
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 50,
-                    startDegreeOffset: -90,
-                    sections: [
-                      PieChartSectionData(
-                        value: critical.toDouble(),
-                        color: const Color(0xFFEF4444), // Rojo
-                        title: '',
-                        radius: 20,
-                      ),
-                      PieChartSectionData(
-                        value: normal.toDouble(),
-                        color: const Color(0xFF10B981), // Verde
-                        title: '',
-                        radius: 20,
-                      ),
-                    ],
+          Center(
+            child: SizedBox(
+              width: 140,
+              height: 140,
+              child: Stack(
+                children: [
+                  PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 50,
+                      startDegreeOffset: -90,
+                      sections: total == 0
+                          ? [
+                              PieChartSectionData(
+                                value: 1,
+                                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                title: '',
+                                radius: 18,
+                              ),
+                            ]
+                          : [
+                              PieChartSectionData(
+                                value: critical.toDouble(),
+                                color: const Color(0xFFEF4444), // Rojo
+                                title: '',
+                                radius: 20,
+                              ),
+                              PieChartSectionData(
+                                value: normal.toDouble(),
+                                color: const Color(0xFF10B981), // Verde
+                                title: '',
+                                radius: 20,
+                              ),
+                            ],
+                    ),
                   ),
-                ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('$total', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
-                      const Text('Productos\nTotales', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.2)),
-                    ],
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$total',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'Total',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildChartLegend('Stock crítico', critical, criticalPct, const Color(0xFFEF4444), Theme.of(context).colorScheme.onSurface),
-                const SizedBox(height: 16),
-                _buildChartLegend('Stock normal', normal, normalPct, const Color(0xFF10B981), Theme.of(context).colorScheme.onSurface),
-              ],
-            ),
-          )
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _buildChartLegend('Crítico', critical, criticalPct, const Color(0xFFEF4444), Theme.of(context).colorScheme.onSurface, isDark),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildChartLegend('Normal', normal, normalPct, const Color(0xFF10B981), Theme.of(context).colorScheme.onSurface, isDark),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildChartLegend(String label, int count, double pct, Color color, Color textColor) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+  Widget _buildChartLegend(String label, int count, double pct, Color color, Color textColor, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.3) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Text(label, style: TextStyle(fontSize: 14, color: textColor, fontWeight: FontWeight.w500)),
-              Text('$count productos', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
-        ),
-        Text('${pct.toStringAsFixed(1)}%', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-      ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '$count prod.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${pct.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyMovementsCard(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+    final textColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))
-        ]
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.card(isDark: isDark),
       ),
-      child: Row(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF), 
+              color: actionColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.assignment_outlined, color: Color(0xFF3B82F6), size: 32),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('No hay movimientos recientes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
-                const SizedBox(height: 4),
-                const Text('Cuando registres entradas o salidas, aparecerán aquí.', style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3)),
-              ],
+            child: Icon(
+              Icons.history_rounded,
+              color: actionColor,
+              size: 40,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(height: 16),
+          Text(
+            'Sin movimientos recientes',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Registra entradas o salidas de productos para verlas aquí.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
-            onPressed: () {
-              context.push('/movements');
-            },
+            onPressed: () => context.push('/movements?showForm=true'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+               backgroundColor: actionColor,
+               foregroundColor: textColor,
+               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+               elevation: 0,
             ),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Nuevo\nMovimiento', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, height: 1.1)),
+            label: const Text(
+               'Nuevo Movimiento',
+               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -945,13 +1263,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     bool showTrailing = true,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = textColor ?? (isDark ? Colors.white70 : Colors.black87);
-    final iColor = iconColor ?? (isDark ? Colors.white54 : Colors.black54);
-    
+    final color = textColor ?? Theme.of(context).colorScheme.onSurface;
+    final iColor = iconColor ?? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD));
+
     return ListTile(
-      leading: Icon(icon, color: iColor),
-      title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
-      trailing: showTrailing ? Icon(Icons.chevron_right, color: isDark ? Colors.white24 : Colors.black26, size: 20) : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: iColor.withValues(alpha: isDark ? 0.12 : 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iColor, size: 20),
+      ),
+      title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 14)),
+      trailing: showTrailing ? Icon(Icons.chevron_right, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 20) : null,
       onTap: () {
         Navigator.pop(context);
         onTap();

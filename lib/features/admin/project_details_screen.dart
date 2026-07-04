@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/admin_ui.dart';
 import '../../data/models/project_model.dart';
 import '../../data/models/movement_model.dart';
 import '../../data/providers/movements_provider.dart';
@@ -27,11 +29,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.project.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
-      ),
+      backgroundColor: adminScaffoldBackground(context),
+      appBar: adminAppBar(context, widget.project.name),
       body: Consumer2<MovementsProvider, ProductsProvider>(
         builder: (context, movementsProv, productsProv, child) {
           if (movementsProv.isLoading || productsProv.isLoading) {
@@ -69,13 +71,18 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               // Header de Costos Totales
               Container(
                 width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [const Color(0xFF1E40AF), const Color(0xFF2563EB)]
+                        : [const Color(0xFF1E3A8A), const Color(0xFF1D4ED8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: AppShadows.tinted(const Color(0xFF3B82F6), alpha: 0.12),
                 ),
                 child: Column(
                   children: [
@@ -106,53 +113,75 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               // Lista de materiales usados
               Expanded(
                 child: detailsList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text('No se han asignado materiales a este proyecto', 
-                              style: TextStyle(color: Colors.grey.shade600)),
-                          ],
-                        ),
+                    ? const AdminEmptyState(
+                        icon: Icons.inventory_2_outlined,
+                        title: 'Sin materiales asignados',
+                        subtitle: 'Aún no hay retiros de stock vinculados a este proyecto.',
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                         itemCount: detailsList.length,
                         itemBuilder: (context, index) {
                           final item = detailsList[index];
                           final MovementModel mov = item['movement'];
                           final product = item['product'];
                           final double cost = item['cost'];
-                          
+
                           DateTime parsedDate = DateTime.tryParse(mov.date) ?? DateTime.now();
                           String formattedDate = DateFormat('dd/MM/yyyy').format(parsedDate);
 
-                          return Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade200),
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: AppShadows.card(isDark: isDark),
                             ),
-                            child: ListTile(
-                              leading: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(Icons.arrow_upward, color: Colors.red.shade700),
-                              ),
-                              title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('$formattedDate • ${mov.quantity} ${product.unit} (a \$${product.price})'),
-                              trailing: Text(
-                                '\$${cost.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black87,
-                                ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.arrow_upward_rounded, color: Color(0xFFEF4444), size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          product.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '$formattedDate · ${mov.quantity} ${product.unit} (a \$${product.price})',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${cost.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

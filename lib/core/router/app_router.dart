@@ -71,7 +71,10 @@ class AppRouter {
             ),
             GoRoute(
               path: '/movements',
-              builder: (context, state) => const MovementsScreen(),
+              builder: (context, state) {
+                final showForm = state.uri.queryParameters['showForm'] == 'true';
+                return MovementsScreen(showForm: showForm);
+              },
             ),
           ],
         ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
+import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/admin_ui.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../core/services/pdf_service.dart';
@@ -49,21 +51,34 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Generador de Códigos QR'),
+      backgroundColor: adminScaffoldBackground(context),
+      appBar: adminAppBar(
+        context,
+        'Generador de Etiquetas',
         actions: [
           Consumer<ProductsProvider>(
             builder: (context, provider, child) {
-              return TextButton.icon(
-                onPressed: provider.products.isEmpty ? null : () => _selectAll(provider.products),
-                icon: Icon(
-                  _selectedProducts.length == provider.products.length ? Icons.deselect : Icons.select_all,
-                  color: Colors.white
-                ),
-                label: Text(
-                  _selectedProducts.length == provider.products.length ? 'Deseleccionar' : 'Todos',
-                  style: const TextStyle(color: Colors.white)
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TextButton.icon(
+                  onPressed: provider.products.isEmpty ? null : () => _selectAll(provider.products),
+                  icon: Icon(
+                    _selectedProducts.length == provider.products.length
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    size: 18,
+                    color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                  ),
+                  label: Text(
+                    _selectedProducts.length == provider.products.length ? 'Deseleccionar' : 'Todos',
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               );
             },
@@ -76,9 +91,11 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
               onPressed: () async {
                 await PdfService.generateLabelsPdf(_selectedProducts, isBarcode: _isBarcode);
               },
-              icon: const Icon(Icons.print),
+              icon: const Icon(Icons.print_rounded),
               label: Text('Imprimir PDF (${_selectedProducts.length})'),
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+              foregroundColor: Colors.white,
+              elevation: 1,
             ),
       body: Consumer<ProductsProvider>(
         builder: (context, provider, child) {
@@ -87,84 +104,165 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
           }
 
           if (provider.products.isEmpty) {
-            return const Center(child: Text('No hay productos registrados.'));
+            return const AdminEmptyState(
+              icon: Icons.qr_code_2_outlined,
+              title: 'No hay productos registrados',
+              subtitle: 'Agrega productos al catálogo para generar etiquetas.',
+            );
           }
 
           final filteredProducts = provider.products.where((p) {
-            return p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                   p.code.toLowerCase().contains(_searchQuery.toLowerCase());
+            return p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                p.code.toLowerCase().contains(_searchQuery.toLowerCase());
           }).toList();
 
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Buscar...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          filled: true,
-                          fillColor: Colors.white,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: AppShadows.card(isDark: isDark),
                         ),
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        child: TextField(
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar producto...',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                            prefixIcon: Icon(Icons.search, color: Colors.grey),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          onChanged: (value) => setState(() => _searchQuery = value),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Column(
-                      children: [
-                        const Text('Barras', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        Switch(
-                          value: _isBarcode,
-                          onChanged: (val) => setState(() => _isBarcode = val),
-                          activeThumbColor: Theme.of(context).primaryColor,
-                        ),
-                      ],
-                    )
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppShadows.card(isDark: isDark),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Barras',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: _isBarcode,
+                            onChanged: (val) => setState(() => _isBarcode = val),
+                            activeTrackColor: (isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD))
+                                .withValues(alpha: 0.5),
+                            activeThumbColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
               if (filteredProducts.isEmpty)
-                const Expanded(child: Center(child: Text('No se encontraron resultados.')))
+                const Expanded(
+                  child: AdminEmptyState(
+                    icon: Icons.search_off_outlined,
+                    title: 'Sin resultados',
+                    subtitle: 'Prueba con otro nombre o código.',
+                  ),
+                )
               else
                 Expanded(
                   child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 100),
                     itemCount: filteredProducts.length,
                     itemBuilder: (context, index) {
                       final prod = filteredProducts[index];
                       final isSelected = _selectedProducts.contains(prod);
+                      final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade200, width: isSelected ? 2 : 1),
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: AppShadows.card(isDark: isDark),
+                          border: isSelected
+                              ? Border.all(color: accent, width: 1.5)
+                              : null,
                         ),
-                        child: ListTile(
-                          onTap: () => _toggleProductSelection(prod),
-                          leading: SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: _isBarcode
-                                ? BarcodeWidget(
-                                    barcode: Barcode.code128(),
-                                    data: prod.code,
-                                    drawText: false,
-                                  )
-                                : QrImageView(
-                                    data: prod.code,
-                                    version: QrVersions.auto,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _toggleProductSelection(prod),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 64,
+                                    height: 64,
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.95)
+                                          : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: _isBarcode
+                                        ? BarcodeWidget(
+                                            barcode: Barcode.code128(),
+                                            data: prod.code,
+                                            drawText: false,
+                                          )
+                                        : QrImageView(
+                                            data: prod.code,
+                                            version: QrVersions.auto,
+                                          ),
                                   ),
-                          ),
-                          title: Text(prod.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('SKU: ${prod.code}'),
-                          trailing: Checkbox(
-                            value: isSelected,
-                            onChanged: (val) => _toggleProductSelection(prod),
-                            activeColor: Theme.of(context).primaryColor,
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          prod.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'SKU: ${prod.code}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Checkbox(
+                                    value: isSelected,
+                                    onChanged: (val) => _toggleProductSelection(prod),
+                                    activeColor: accent,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       );

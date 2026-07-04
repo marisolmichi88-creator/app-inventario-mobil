@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme/app_shadows.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -28,6 +29,57 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _confirmDeleteProduct(BuildContext context, ProductModel product) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        final isDark = Theme.of(dialogCtx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: const Text('¿Estás seguro?', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text('¿Desea eliminar el producto "${product.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogCtx); // Cerrar diálogo
+                Navigator.pop(context); // Cerrar BottomSheet
+                
+                final deleted = await context.read<ProductsProvider>().deleteProduct(product.id!);
+                
+                if (context.mounted) {
+                  if (deleted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Producto eliminado con éxito.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No se puede eliminar porque tiene historial. Se ha desactivado el producto.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Eliminar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showProductForm([ProductModel? product]) {
@@ -88,9 +140,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                      Row(
+                        children: [
+                          if (isEditing)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                              onPressed: () => _confirmDeleteProduct(context, product),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -124,12 +185,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Expanded(
                         child: _buildFormField(
                           controller: stockController,
-                          label: 'Stock Inicial',
+                          label: isEditing ? 'Stock Actual' : 'Stock Inicial',
                           hint: '0',
                           icon: Icons.inventory_2_outlined,
                           isNumber: true,
                           isDark: isDark,
-                          enabled: !isEditing,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -182,7 +242,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1959AD))),
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -211,8 +278,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1959AD),
-                            foregroundColor: Colors.white,
+                            backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                            foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
@@ -321,8 +388,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showProductForm(),
         backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-        foregroundColor: Colors.white,
-        elevation: 4,
+        foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        elevation: 1,
         icon: const Icon(Icons.add),
         label: const Text('Nuevo Producto', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
@@ -347,9 +414,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                    ]
+                    boxShadow: AppShadows.card(isDark: isDark),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -461,9 +526,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? const Color(0xFF1E293B) : Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
-                            ],
+                            boxShadow: AppShadows.card(isDark: isDark),
                             border: isLowStock ? Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1) : null,
                           ),
                           child: InkWell(

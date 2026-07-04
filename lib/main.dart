@@ -11,12 +11,16 @@ import 'data/providers/projects_provider.dart';
 import 'data/providers/products_provider.dart';
 import 'data/providers/movements_provider.dart';
 import 'data/providers/theme_provider.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inicializar base de datos
   await DatabaseHelper().database;
+
+  // Inicializar notificaciones locales
+  await NotificationService().init();
 
   runApp(const ProenergimApp());
 }
@@ -91,8 +95,9 @@ class _AppWithThemeState extends State<_AppWithTheme> {
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
-          elevation: 1,
-          shadowColor: Colors.black12,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -142,7 +147,8 @@ class _AppWithThemeState extends State<_AppWithTheme> {
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: const Color(0xFF1959AD),
           foregroundColor: Colors.white,
-          elevation: 2,
+          elevation: 1,
+          highlightElevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -167,8 +173,9 @@ class _AppWithThemeState extends State<_AppWithTheme> {
         ),
         cardTheme: CardThemeData(
           color: const Color(0xFF1E293B),
-          elevation: 1,
-          shadowColor: Colors.black26,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -213,7 +220,8 @@ class _AppWithThemeState extends State<_AppWithTheme> {
         floatingActionButtonTheme: FloatingActionButtonThemeData(
           backgroundColor: const Color(0xFF60A5FA),
           foregroundColor: const Color(0xFF0F172A),
-          elevation: 2,
+          elevation: 1,
+          highlightElevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

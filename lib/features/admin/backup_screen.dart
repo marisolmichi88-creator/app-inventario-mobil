@@ -3,6 +3,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import '../../core/database/database_helper.dart';
+import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/admin_ui.dart';
 
 class BackupScreen extends StatelessWidget {
   const BackupScreen({super.key});
@@ -65,46 +67,88 @@ class BackupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Copias de Seguridad')),
+      backgroundColor: adminScaffoldBackground(context),
+      appBar: adminAppBar(context, 'Copias de Seguridad'),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.security, size: 80, color: Color(0xFF1959AD)),
-              const SizedBox(height: 24),
-              const Text(
-                'Protege tu inventario creando copias de seguridad de la base de datos local y guárdalas en un lugar seguro.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 48),
-              ElevatedButton.icon(
-                onPressed: () => _exportDatabase(context),
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Exportar Copia de Seguridad'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                  backgroundColor: const Color(0xFF1959AD),
-                  foregroundColor: Colors.white,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: AppShadows.card(isDark: isDark),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1E3A8A).withValues(alpha: 0.25)
+                          : const Color(0xFFEFF6FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.security_rounded,
+                      size: 56,
+                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => _importDatabase(context),
-                icon: const Icon(Icons.download),
-                label: const Text('Restaurar desde un Archivo'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16),
-                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.white,
-                  foregroundColor: const Color(0xFF1959AD),
-                  side: const BorderSide(color: Color(0xFF1959AD)),
+                const SizedBox(height: 24),
+                Text(
+                  'Protege tu inventario',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  'Crea copias de seguridad de la base de datos local y guárdalas en un lugar seguro.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => _exportDatabase(context),
+                  icon: const Icon(Icons.upload_file_rounded),
+                  label: const Text('Exportar copia de seguridad'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => _importDatabase(context),
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Restaurar desde archivo'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

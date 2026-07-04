@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_shadows.dart';
 import 'auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -37,13 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          )
-                        ],
+                        boxShadow: AppShadows.iconGlow(
+                          Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),

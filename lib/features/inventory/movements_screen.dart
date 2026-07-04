@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import '../../features/auth/auth_provider.dart';
 import '../../data/providers/movements_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/warehouses_provider.dart';
 import '../../data/providers/projects_provider.dart';
+import '../../data/models/product_model.dart';
+import '../../data/models/movement_model.dart';
+import '../../core/services/pdf_service.dart';
 import 'package:intl/intl.dart';
 import 'widgets/movement_form_dialog.dart';
+import '../../core/theme/app_shadows.dart';
 
 class MovementsScreen extends StatefulWidget {
-  const MovementsScreen({super.key});
+  final bool showForm;
+  const MovementsScreen({super.key, this.showForm = false});
 
   @override
   State<MovementsScreen> createState() => _MovementsScreenState();
@@ -26,6 +35,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
       context.read<ProductsProvider>().fetchProducts();
       context.read<WarehousesProvider>().fetchWarehouses();
       context.read<ProjectsProvider>().fetchProjects();
+      if (widget.showForm) {
+        _showMovementForm();
+      }
     });
   }
 
@@ -48,9 +60,54 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
+  Future<void> _exportToCSV(BuildContext context, List<MovementModel> movements, List<ProductModel> products) async {
+    try {
+      List<List<dynamic>> rows = [];
+      rows.add(["ID", "Fecha", "Tipo", "Producto SKU", "Producto Nombre", "Cantidad", "Almacen ID", "Proyecto ID", "Notas"]);
+
+      for (var mov in movements) {
+        final product = products.firstWhere((p) => p.id == mov.productId, orElse: () => ProductModel(code: 'N/A', name: 'Desconocido'));
+        rows.add([
+          mov.id,
+          mov.date,
+          mov.type,
+          product.code,
+          product.name,
+          mov.quantity,
+          mov.warehouseId,
+          mov.projectId ?? '',
+          mov.notes ?? ''
+        ]);
+      }
+
+      String csvData = const ListToCsvConverter().convert(rows);
+
+      final directory = await getExternalStorageDirectory(); // Android
+      final path = "${directory?.path ?? '/storage/emulated/0/Download'}/movimientos_proenergim_${DateTime.now().millisecondsSinceEpoch}.csv";
+      final file = File(path);
+      await file.writeAsString(csvData);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exportado a: $path'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final movementsProvider = context.watch<MovementsProvider>();
+    final productsProvider = context.watch<ProductsProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
 
     return Scaffold(
       backgroundColor: isDark
@@ -72,6 +129,51 @@ class _MovementsScreenState extends State<MovementsScreen> {
           ),
         ),
         actions: [
+          if (user?.role == 'admin')
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.download_rounded,
+                  color: isDark ? Colors.white : const Color(0xFF2563EB),
+                  size: 20,
+                ),
+                tooltip: 'Exportar movimientos',
+                onSelected: (value) async {
+                  if (value == 'CSV') {
+                    _exportToCSV(context, movementsProvider.movements, productsProvider.products);
+                  } else if (value == 'PDF') {
+                    await PdfService.generateAndPrintMovementsReport(
+                      movementsProvider.movements,
+                      productsProvider.products,
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'PDF',
+                    child: ListTile(
+                      leading: Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                      title: Text('Exportar a PDF'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'CSV',
+                    child: ListTile(
+                      leading: Icon(Icons.table_chart, color: Colors.green),
+                      title: Text('Exportar a Excel (CSV)'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(width: 8),
           Container(
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
             decoration: BoxDecoration(
@@ -97,11 +199,9 @@ class _MovementsScreenState extends State<MovementsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showMovementForm(),
-        backgroundColor: isDark
-            ? const Color(0xFF60A5FA)
-            : const Color(0xFF1959AD),
-        foregroundColor: Colors.white,
-        elevation: 4,
+        backgroundColor: actionColor,
+        foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        elevation: 1,
         icon: const Icon(Icons.swap_horiz_rounded),
         label: const Text(
           'Nuevo Movimiento',
@@ -210,13 +310,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        boxShadow: AppShadows.card(isDark: isDark),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -390,7 +484,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                           right: 20,
                                         ),
                                         duration: const Duration(seconds: 3),
-                                        elevation: 6,
+                                        elevation: 2,
                                       ),
                                     );
                                     if (success) {
@@ -445,13 +539,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
           ),
           boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: activeColor.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+              ? AppShadows.tinted(activeColor, alpha: 0.12)
               : [],
         ),
         child: Row(

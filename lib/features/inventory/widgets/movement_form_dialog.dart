@@ -17,12 +17,12 @@ class MovementFormDialog extends StatefulWidget {
 }
 
 class _MovementFormDialogState extends State<MovementFormDialog> {
-  String type = 'OUT'; // Default a SALIDA porque es la acción más común del trabajador
+  String? type; 
   int? selectedProductId;
   int? selectedWarehouseId;
   int? selectedProjectId;
   
-  final quantityController = TextEditingController(text: '1');
+  final quantityController = TextEditingController();
   final notesController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   bool _isLoading = true;
@@ -46,28 +46,21 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
 
       if (mounted) {
         final products = productsProvider.products.where((p) => p.isActive).toList();
-        final warehouses = warehousesProvider.warehouses.where((w) => w.isActive).toList();
-        final projects = projectsProvider.projects.where((p) => p.status == 'active').toList();
         
         if (products.isNotEmpty) {
           if (widget.prefilledCode != null) {
             try {
               selectedProductId = products.firstWhere((p) => p.code == widget.prefilledCode).id;
             } catch (_) {
-              selectedProductId = products.first.id;
+              selectedProductId = null;
             }
           } else {
-            selectedProductId = products.first.id;
+            selectedProductId = null;
           }
         }
         
-        if (warehouses.isNotEmpty) {
-          selectedWarehouseId = warehouses.first.id;
-        }
-        
-        if (projects.isNotEmpty) {
-          selectedProjectId = projects.first.id;
-        }
+        selectedWarehouseId = null;
+        selectedProjectId = null;
 
         setState(() {
           _isLoading = false;
@@ -79,6 +72,13 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      child: _buildContent(context, isDark),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool isDark) {
 
     if (_isLoading) {
       return Container(
@@ -160,10 +160,17 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       isDark: isDark,
                       value: type,
                       items: const [
-                        DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
-                        DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13))),
+                        DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))),
                       ],
-                      onChanged: (val) => setState(() => type = val!),
+                      onChanged: (val) => setState(() => type = val),
+                      hint: Text(
+                        'Seleccione tipo de movimiento',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildDropdownField<int>(
@@ -171,8 +178,15 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       icon: Icons.inventory_2_outlined,
                       isDark: isDark,
                       value: selectedProductId,
-                      items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
+                      items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
                       onChanged: (val) => setState(() => selectedProductId = val),
+                      hint: Text(
+                        'Seleccione un producto',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildDropdownField<int>(
@@ -180,8 +194,15 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       icon: Icons.storefront_outlined,
                       isDark: isDark,
                       value: selectedWarehouseId,
-                      items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis))).toList(),
+                      items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
                       onChanged: (val) => setState(() => selectedWarehouseId = val),
+                      hint: Text(
+                        'Seleccione un almacén',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     if (type == 'OUT' && projects.isNotEmpty) ...[
@@ -190,9 +211,16 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                         icon: Icons.assignment_outlined,
                         isDark: isDark,
                         value: selectedProjectId,
-                        items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis))).toList(),
+                        items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
                         onChanged: (val) => setState(() => selectedProjectId = val),
                         validator: (val) => val == null ? 'Seleccione un proyecto' : null,
+                        hint: Text(
+                          'Seleccione un proyecto',
+                          style: TextStyle(
+                            color: isDark ? Colors.grey.shade400 : Colors.black54,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -241,7 +269,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                                   warehouseId: selectedWarehouseId!,
                                   projectId: type == 'OUT' ? selectedProjectId : null,
                                   userId: user.id!,
-                                  type: type,
+                                  type: type!,
                                   quantity: int.parse(quantityController.text),
                                   date: DateTime.now().toIso8601String(),
                                   notes: notesController.text.trim(),
@@ -350,19 +378,21 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
     required List<DropdownMenuItem<T>> items,
     required void Function(T?) onChanged,
     String? Function(T?)? validator,
+    Widget? hint,
   }) {
     return DropdownButtonFormField<T>(
       isExpanded: true,
       initialValue: value,
       items: items,
       onChanged: onChanged,
+      hint: hint,
       validator: validator ?? (val) {
         if (val == null) return 'Requerido';
         return null;
       },
       style: TextStyle(
         color: isDark ? Colors.white : Colors.black87,
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: FontWeight.w500,
       ),
       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
