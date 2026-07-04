@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../inventory/widgets/movement_form_dialog.dart';
+import '../../core/theme/app_shadows.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
