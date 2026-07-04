@@ -52,9 +52,14 @@ class NotificationService {
     }
   }
 
+  static bool _isLaunchNotificationHandled = false;
+
   Future<void> checkLaunchNotification(Function(String?) onLaunch) async {
+    if (_isLaunchNotificationHandled) return;
+    
     final details = await _notificationsPlugin.getNotificationAppLaunchDetails();
     if (details != null && details.didNotificationLaunchApp) {
+      _isLaunchNotificationHandled = true;
       onLaunch(details.notificationResponse?.payload);
     }
   }
