@@ -8,6 +8,7 @@ class ProductModel {
   final int minStock;
   final String? unit;
   final double price;
+  final String currency;
   final bool isActive;
 
   ProductModel({
@@ -20,6 +21,7 @@ class ProductModel {
     this.minStock = 0,
     this.unit,
     this.price = 0.0,
+    this.currency = 'PEN',
     this.isActive = true,
   });
 
@@ -34,6 +36,7 @@ class ProductModel {
       minStock: map['minStock'] ?? 0,
       unit: map['unit'],
       price: map['price']?.toDouble() ?? 0.0,
+      currency: map['currency'] ?? 'PEN',
       isActive: map['isActive'] == 1,
     );
   }
@@ -49,6 +52,7 @@ class ProductModel {
       'minStock': minStock,
       'unit': unit,
       'price': price,
+      'currency': currency,
       'isActive': isActive ? 1 : 0,
     };
   }

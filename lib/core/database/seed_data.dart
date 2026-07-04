@@ -16,7 +16,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 92,
       'minStock': 5,
       'unit': 'UND',
-      'price': 60.0
+      'price': 60.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0002',
@@ -25,7 +26,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 32,
       'minStock': 5,
       'unit': 'UND',
-      'price': 198.0
+      'price': 198.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0003',
@@ -34,7 +36,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 32,
       'minStock': 5,
       'unit': 'UND',
-      'price': 128.0
+      'price': 128.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0004',
@@ -43,7 +46,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 28,
       'minStock': 5,
       'unit': 'UND',
-      'price': 170.0
+      'price': 170.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0005',
@@ -52,7 +56,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 6,
       'minStock': 5,
       'unit': 'UND',
-      'price': 303.0
+      'price': 303.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0006',
@@ -61,7 +66,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 5,
       'minStock': 5,
       'unit': 'UND',
-      'price': 650.0
+      'price': 650.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0007',
@@ -70,7 +76,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 4,
       'minStock': 5,
       'unit': 'UND',
-      'price': 850.0
+      'price': 850.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0008',
@@ -79,7 +86,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 5,
       'minStock': 5,
       'unit': 'UND',
-      'price': 1160.0
+      'price': 1160.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0009',
@@ -88,7 +96,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 1,
       'minStock': 5,
       'unit': 'UND',
-      'price': 2070.0
+      'price': 2070.0,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0010',
@@ -97,7 +106,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 360,
       'minStock': 5,
       'unit': 'UND',
-      'price': 4.4
+      'price': 4.4,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0011',
@@ -106,7 +116,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 12,
       'minStock': 5,
       'unit': 'UND',
-      'price': 35.2
+      'price': 35.2,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0012',
@@ -115,7 +126,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 12,
       'minStock': 5,
       'unit': 'UND',
-      'price': 59.1
+      'price': 59.1,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0013',
@@ -124,7 +136,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 8,
       'minStock': 5,
       'unit': 'UND',
-      'price': 90.7
+      'price': 90.7,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0014',
@@ -133,7 +146,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 120,
       'minStock': 5,
       'unit': 'UND',
-      'price': 3.9
+      'price': 3.9,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0015',
@@ -142,7 +156,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 1000,
       'minStock': 5,
       'unit': 'UND',
-      'price': 0.5
+      'price': 0.5,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0016',
@@ -151,7 +166,8 @@ Future<void> insertSeedData(Database db) async {
       'stock': 0,
       'minStock': 5,
       'unit': 'UND',
-      'price': 0.04
+      'price': 0.04,
+      'currency': 'USD'
     });
     await db.insert('products', {
       'code': 'PROD-0017',

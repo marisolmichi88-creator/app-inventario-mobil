@@ -6,6 +6,7 @@ import '../../../data/providers/products_provider.dart';
 import '../../../data/providers/warehouses_provider.dart';
 import '../../../data/providers/projects_provider.dart';
 import '../../auth/auth_provider.dart';
+import '../../../core/widgets/custom_snackbar.dart';
 
 class MovementFormDialog extends StatefulWidget {
   final String? prefilledCode;
@@ -280,13 +281,9 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                                 if (context.mounted) {
                                   if (success) {
                                     Navigator.pop(context, true);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Movimiento registrado con éxito.'), backgroundColor: Colors.green),
-                                    );
+                                    CustomSnackBar.showSuccess(context, 'Registro exitoso');
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Stock insuficiente para realizar esta salida.'), backgroundColor: Colors.red),
-                                    );
+                                    CustomSnackBar.showError(context, 'Stock insuficiente');
                                   }
                                 }
                               }

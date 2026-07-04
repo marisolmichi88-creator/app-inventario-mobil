@@ -21,9 +21,6 @@ class ThemeToggleTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
-        ),
       ),
       child: Row(
         children: [
@@ -55,9 +52,10 @@ class ThemeToggleTile extends StatelessWidget {
             value: isDarkMode,
             onChanged: onChanged,
             activeThumbColor: Colors.white,
-            activeTrackColor: accent.withValues(alpha: 0.55),
+            activeTrackColor: accent,
             inactiveThumbColor: isDark ? Colors.grey.shade400 : Colors.white,
-            inactiveTrackColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            inactiveTrackColor: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ],
       ),

@@ -75,7 +75,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final nameController = TextEditingController(text: user?.name ?? '');
     final emailController = TextEditingController(text: user?.email ?? '');
     final passwordController = TextEditingController(text: user?.password ?? '');
-    String selectedRole = user?.role ?? 'worker';
+    String? selectedRole = user?.role;
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
@@ -137,7 +137,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       _buildFormField(
                         controller: nameController,
                         label: 'Nombre completo',
-                        hint: 'Ej. Juan Pérez',
+                        hint: 'Nombre y Apellido',
                         icon: Icons.person_outline,
                         isDark: isDark,
                       ),
@@ -145,7 +145,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       _buildFormField(
                         controller: emailController,
                         label: 'Correo electrónico',
-                        hint: 'Ej. juan.perez@empresa.com',
+                        hint: 'correo@gmail.com',
                         icon: Icons.email_outlined,
                         isDark: isDark,
                       ),
@@ -160,6 +160,8 @@ class _UsersScreenState extends State<UsersScreen> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue: selectedRole,
+                        hint: const Text('Seleccionar rol'),
+                        validator: (val) => val == null ? 'Por favor selecciona un rol' : null,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
@@ -196,7 +198,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         ],
                         onChanged: (val) {
                           setState(() {
-                            selectedRole = val!;
+                            selectedRole = val;
                           });
                         },
                       ),
@@ -232,7 +234,7 @@ class _UsersScreenState extends State<UsersScreen> {
                                     name: nameController.text.trim(),
                                     email: emailController.text.trim(),
                                     password: passwordController.text.trim(),
-                                    role: selectedRole,
+                                    role: selectedRole!,
                                     isActive: user?.isActive ?? true,
                                   );
                                   

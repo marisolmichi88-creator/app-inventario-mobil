@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:csv/csv.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import '../../features/auth/auth_provider.dart';
 import '../../data/providers/movements_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/warehouses_provider.dart';
 import '../../data/providers/projects_provider.dart';
-import '../../data/models/product_model.dart';
-import '../../data/models/movement_model.dart';
 import '../../core/services/pdf_service.dart';
 import 'package:intl/intl.dart';
 import 'widgets/movement_form_dialog.dart';
 import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/custom_snackbar.dart';
 
 class MovementsScreen extends StatefulWidget {
   final bool showForm;
@@ -60,47 +56,6 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
-  Future<void> _exportToCSV(BuildContext context, List<MovementModel> movements, List<ProductModel> products) async {
-    try {
-      List<List<dynamic>> rows = [];
-      rows.add(["ID", "Fecha", "Tipo", "Producto SKU", "Producto Nombre", "Cantidad", "Almacen ID", "Proyecto ID", "Notas"]);
-
-      for (var mov in movements) {
-        final product = products.firstWhere((p) => p.id == mov.productId, orElse: () => ProductModel(code: 'N/A', name: 'Desconocido'));
-        rows.add([
-          mov.id,
-          mov.date,
-          mov.type,
-          product.code,
-          product.name,
-          mov.quantity,
-          mov.warehouseId,
-          mov.projectId ?? '',
-          mov.notes ?? ''
-        ]);
-      }
-
-      String csvData = const ListToCsvConverter().convert(rows);
-
-      final directory = await getExternalStorageDirectory(); // Android
-      final path = "${directory?.path ?? '/storage/emulated/0/Download'}/movimientos_proenergim_${DateTime.now().millisecondsSinceEpoch}.csv";
-      final file = File(path);
-      await file.writeAsString(csvData);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exportado a: $path'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
@@ -136,41 +91,19 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: PopupMenuButton<String>(
+              child: IconButton(
                 icon: Icon(
-                  Icons.download_rounded,
+                  Icons.picture_as_pdf_rounded,
                   color: isDark ? Colors.white : const Color(0xFF2563EB),
                   size: 20,
                 ),
-                tooltip: 'Exportar movimientos',
-                onSelected: (value) async {
-                  if (value == 'CSV') {
-                    _exportToCSV(context, movementsProvider.movements, productsProvider.products);
-                  } else if (value == 'PDF') {
-                    await PdfService.generateAndPrintMovementsReport(
-                      movementsProvider.movements,
-                      productsProvider.products,
-                    );
-                  }
+                tooltip: 'Exportar a PDF',
+                onPressed: () async {
+                  await PdfService.generateAndPrintMovementsReport(
+                    movementsProvider.movements,
+                    productsProvider.products,
+                  );
                 },
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'PDF',
-                    child: ListTile(
-                      leading: Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-                      title: Text('Exportar a PDF'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'CSV',
-                    child: ListTile(
-                      leading: Icon(Icons.table_chart, color: Colors.green),
-                      title: Text('Exportar a Excel (CSV)'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
               ),
             ),
           const SizedBox(width: 8),
@@ -321,8 +254,12 @@ class _MovementsScreenState extends State<MovementsScreen> {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: isEntry
-                                    ? const Color(0xFFDCFCE7)
-                                    : const Color(0xFFFEE2E2),
+                                    ? (isDark
+                                        ? const Color(0xFF16A34A).withValues(alpha: 0.15)
+                                        : const Color(0xFFDCFCE7))
+                                    : (isDark
+                                        ? const Color(0xFFDC2626).withValues(alpha: 0.15)
+                                        : const Color(0xFFFEE2E2)),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -330,8 +267,8 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                     ? Icons.arrow_downward_rounded
                                     : Icons.arrow_upward_rounded,
                                 color: isEntry
-                                    ? const Color(0xFF16A34A)
-                                    : const Color(0xFFDC2626),
+                                    ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A))
+                                    : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
                                 size: 24,
                               ),
                             ),
@@ -344,11 +281,11 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                     productName.toUpperCase(),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurface,
-                                      height: 1.2,
+                                      height: 1.25,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -441,56 +378,11 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                       .read<MovementsProvider>()
                                       .deleteMovement(mov);
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Row(
-                                          children: [
-                                            Icon(
-                                              success
-                                                  ? Icons.check_circle
-                                                  : Icons.error,
-                                              color: Colors.white,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                success
-                                                    ? 'Movimiento eliminado y stock revertido.'
-                                                    : 'No hay stock suficiente para revertir este movimiento.',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        backgroundColor: success
-                                            ? const Color(0xFF10B981)
-                                            : const Color(0xFFEF4444),
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        margin: EdgeInsets.only(
-                                          bottom:
-                                              MediaQuery.of(
-                                                context,
-                                              ).size.height -
-                                              150,
-                                          left: 20,
-                                          right: 20,
-                                        ),
-                                        duration: const Duration(seconds: 3),
-                                        elevation: 2,
-                                      ),
-                                    );
                                     if (success) {
-                                      context
-                                          .read<ProductsProvider>()
-                                          .fetchProducts();
+                                      CustomSnackBar.showSuccess(context, 'Movimiento eliminado');
+                                      context.read<ProductsProvider>().fetchProducts();
+                                    } else {
+                                      CustomSnackBar.showError(context, 'Reversión fallida');
                                     }
                                   }
                                 }

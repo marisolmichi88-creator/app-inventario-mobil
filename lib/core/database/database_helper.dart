@@ -20,7 +20,7 @@ class DatabaseHelper {
     String path = await getDatabasePath();
     return await openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -31,8 +31,8 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
-      // Recrear tablas completas por el cambio en serialNumber
+    if (oldVersion < 6) {
+      // Recrear tablas completas por el cambio en serialNumber y currency
       await db.execute('DROP TABLE IF EXISTS movements');
       await db.execute('DROP TABLE IF EXISTS products');
       await db.execute('DROP TABLE IF EXISTS categories');
@@ -41,10 +41,6 @@ class DatabaseHelper {
       await db.execute('DROP TABLE IF EXISTS users');
       
       await _onCreate(db, newVersion);
-      
-      // Sembrar datos de nuevo
-      await db.insert('users', {'name': 'Admin', 'email': 'admin@test.com', 'password': '123', 'role': 'admin'}, conflictAlgorithm: ConflictAlgorithm.ignore);
-      await insertSeedData(db);
     }
   }
 
@@ -113,6 +109,7 @@ class DatabaseHelper {
         minStock INTEGER DEFAULT 0,
         unit TEXT,
         price REAL DEFAULT 0.0,
+        currency TEXT DEFAULT 'PEN',
         isActive INTEGER DEFAULT 1,
         is_synced INTEGER DEFAULT 0,
         last_updated TEXT,

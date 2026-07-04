@@ -29,10 +29,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     required bool isDark,
     bool enabled = true,
     int maxLines = 1,
+    VoidCallback? onTap,
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
       enabled: enabled,
+      readOnly: readOnly,
+      onTap: onTap,
       maxLines: maxLines,
       validator: (val) {
         if (!enabled) return null;
@@ -79,7 +83,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final descController = TextEditingController(text: project?.description ?? '');
     final startDateController = TextEditingController(text: project?.startDate ?? '');
     final endDateController = TextEditingController(text: project?.endDate ?? '');
-    String status = project?.status ?? 'active';
+    String? status = project?.status;
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
@@ -161,9 +165,21 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             child: _buildFormField(
                               controller: startDateController,
                               label: 'Fecha Inicio (Opcional)',
-                              hint: 'Ej. 2026-01-01',
+                              hint: 'Seleccionar fecha',
                               icon: Icons.date_range_outlined,
                               isDark: isDark,
+                              readOnly: true,
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.tryParse(startDateController.text) ?? DateTime.now(),
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked != null) {
+                                  startDateController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                }
+                              },
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -171,9 +187,21 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             child: _buildFormField(
                               controller: endDateController,
                               label: 'Fecha Fin (Opcional)',
-                              hint: 'Ej. 2026-12-31',
+                              hint: 'Seleccionar fecha',
                               icon: Icons.date_range_outlined,
                               isDark: isDark,
+                              readOnly: true,
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: DateTime.tryParse(endDateController.text) ?? DateTime.now(),
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked != null) {
+                                  endDateController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                }
+                              },
                             ),
                           ),
                         ],
@@ -181,6 +209,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue: status,
+                        hint: const Text('Seleccionar estado'),
+                        validator: (val) => val == null ? 'Por favor selecciona un estado' : null,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
@@ -218,7 +248,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         ],
                         onChanged: (val) {
                           setState(() {
-                            status = val!;
+                            status = val;
                           });
                         },
                       ),
@@ -255,7 +285,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                     description: descController.text.trim(),
                                     startDate: startDateController.text.trim(),
                                     endDate: endDateController.text.trim(),
-                                    status: status,
+                                    status: status!,
                                   );
                                   
                                   if (isEditing) {

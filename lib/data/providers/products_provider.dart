@@ -6,9 +6,11 @@ import '../../core/services/notification_service.dart';
 class ProductsProvider with ChangeNotifier {
   List<ProductModel> _products = [];
   bool _isLoading = false;
+  final Set<int> _dismissedAlertProductIds = {};
 
   List<ProductModel> get products => _products;
   bool get isLoading => _isLoading;
+  Set<int> get dismissedAlertProductIds => _dismissedAlertProductIds;
 
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
@@ -20,6 +22,13 @@ class ProductsProvider with ChangeNotifier {
     final List<Map<String, dynamic>> maps = await db.query('products');
     
     _products = maps.map((map) => ProductModel.fromMap(map)).toList();
+    
+    // Habilitar de nuevo las alertas para los productos que ya tienen stock suficiente
+    for (final prod in _products) {
+      if (prod.stock > prod.minStock && prod.id != null) {
+        _dismissedAlertProductIds.remove(prod.id);
+      }
+    }
     
     _isLoading = false;
     notifyListeners();
@@ -67,8 +76,8 @@ class ProductsProvider with ChangeNotifier {
       if (type == 'OUT' && newStock <= currentProduct.minStock) {
         NotificationService().showNotification(
           id: productId,
-          title: '⚠️ Alerta de Stock Crítico',
-          body: 'El producto "${currentProduct.name}" ha quedado con stock de $newStock (mínimo: ${currentProduct.minStock}).',
+          title: 'Alerta de Stock Crítico',
+          body: 'Presiona aquí para ver más opciones.',
         );
       }
       
@@ -117,5 +126,15 @@ class ProductsProvider with ChangeNotifier {
     );
     await fetchProducts();
     return true; // Retornar true indicando eliminación física exitosa
+  }
+
+  void dismissAlert(int productId) {
+    _dismissedAlertProductIds.add(productId);
+    notifyListeners();
+  }
+
+  void dismissAllAlerts(List<int> productIds) {
+    _dismissedAlertProductIds.addAll(productIds);
+    notifyListeners();
   }
 }

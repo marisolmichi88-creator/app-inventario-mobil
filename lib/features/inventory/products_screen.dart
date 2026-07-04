@@ -4,6 +4,7 @@ import '../../data/providers/products_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/custom_snackbar.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -58,19 +59,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 
                 if (context.mounted) {
                   if (deleted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Producto eliminado con éxito.'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    CustomSnackBar.showSuccess(context, 'Producto eliminado');
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('No se puede eliminar porque tiene historial. Se ha desactivado el producto.'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
+                    CustomSnackBar.showWarning(context, 'Producto desactivado');
                   }
                 }
               },
@@ -99,22 +90,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        String selectedCurrency = product?.currency ?? 'PEN';
         
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 16,
+              ),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -219,16 +213,44 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _buildFormField(
-                          controller: priceController,
-                          label: 'Precio',
-                          hint: '0.00',
-                          icon: Icons.monetization_on_outlined,
-                          isNumber: true,
-                          isDark: isDark,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedCurrency,
+                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          decoration: InputDecoration(
+                            labelText: 'Moneda',
+                            filled: true,
+                            fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'PEN', child: Text('Soles')),
+                            DropdownMenuItem(value: 'USD', child: Text('Dólares')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => selectedCurrency = val);
+                            }
+                          },
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFormField(
+                    controller: priceController,
+                    label: 'Precio',
+                    hint: '0.00',
+                    icon: Icons.payments_outlined,
+                    isNumber: true,
+                    isDark: isDark,
                   ),
                   const SizedBox(height: 16),
                   Divider(color: Colors.grey.withValues(alpha: 0.2)),
@@ -266,6 +288,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 minStock: int.tryParse(minStockController.text) ?? 0,
                                 unit: unitController.text.trim(),
                                 price: double.tryParse(priceController.text) ?? 0.0,
+                                currency: selectedCurrency,
                                 isActive: product?.isActive ?? true,
                               );
                               
@@ -298,6 +321,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         );
       },
     );
+  },
+);
   }
 
   Widget _buildFormField({
@@ -552,12 +577,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       children: [
                                         Text(
                                           prod.name.toUpperCase(),
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface, height: 1.2),
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Theme.of(context).colorScheme.onSurface, height: 1.25),
                                         ),
                                         const SizedBox(height: 6),
                                         Text('SKU: ${prod.code}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
                                         const SizedBox(height: 6),
-                                        Text('S/ ${prod.price.toStringAsFixed(2)} / UND', style: TextStyle(color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD), fontWeight: FontWeight.w900, fontSize: 12)),
+                                        Text(
+                                          '${prod.currency == 'USD' ? '\$' : 'S/.'} ${prod.price.toStringAsFixed(2)} / ${prod.unit?.isNotEmpty == true ? prod.unit : 'UND'}',
+                                          style: TextStyle(color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD), fontWeight: FontWeight.w900, fontSize: 12),
+                                        ),
                                       ],
                                     ),
                                   ),

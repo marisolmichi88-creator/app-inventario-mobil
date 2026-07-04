@@ -37,156 +37,196 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return Consumer<ProductsProvider>(
+          builder: (context, productsProvider, child) {
+            final dismissedIds = productsProvider.dismissedAlertProductIds;
+            final activeCritical = productsProvider.products
+                .where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id))
+                .toList();
+
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Notificaciones',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: Theme.of(context).colorScheme.onSurface,
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (criticalProducts.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.notifications_active_outlined,
-                          size: 48,
-                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Notificaciones',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No tienes notificaciones pendientes',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      if (activeCritical.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            productsProvider.dismissAllAlerts(
+                              activeCritical.map((p) => p.id!).toList(),
+                            );
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.clear_all_rounded, size: 16, color: Colors.redAccent),
+                          label: const Text('Limpiar todo', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
+                        )
+                      else
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Todos tus productos tienen stock suficiente.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                )
-              else ...[
-                Text(
-                  'Alertas de inventario',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: criticalProducts.length,
-                    itemBuilder: (context, index) {
-                      final prod = criticalProducts[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
-                          ),
-                        ),
-                        child: Row(
+                  const SizedBox(height: 16),
+                  if (activeCritical.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Column(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.red,
-                                size: 20,
+                            Icon(
+                              Icons.notifications_active_outlined,
+                              size: 48,
+                              color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No tienes notificaciones pendientes',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    prod.name,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Todos tus productos tienen stock suficiente.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-              const SizedBox(height: 24),
-            ],
-          ),
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      'Alertas de inventario',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: activeCritical.length,
+                        itemBuilder: (context, index) {
+                          final prod = activeCritical[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        prod.name,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    productsProvider.dismissAlert(prod.id!);
+                                    if (activeCritical.length <= 1) {
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -297,16 +337,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lowStockProducts = products
         .where((p) => p.stock <= p.minStock)
         .length;
+    final activeAlertsCount = products
+        .where((p) => p.stock <= p.minStock && !productsProvider.dismissedAlertProductIds.contains(p.id))
+        .length;
     final normalStockProducts = totalProducts - lowStockProducts;
-    final totalValue = products.fold<double>(
-      0,
-      (sum, item) => sum + (item.price * item.stock),
-    );
+    final totalValuePEN = products
+        .where((p) => p.currency == 'PEN')
+        .fold<double>(0, (sum, item) => sum + (item.price * item.stock));
+    final totalValueUSD = products
+        .where((p) => p.currency == 'USD')
+        .fold<double>(0, (sum, item) => sum + (item.price * item.stock));
     final totalCategories = categoriesProvider.categories.length;
     final recentMovements = movementsProvider.movements.take(2).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+    final dividerColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200;
 
     return Scaffold(
       backgroundColor: isDark
@@ -335,9 +381,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Icons.notifications_none_rounded,
                   color: isDark ? Colors.white : Colors.black87,
                 ),
-                onPressed: () => _showNotificationsBottomSheet(context, products.where((p) => p.stock <= p.minStock).toList()),
+                onPressed: () {
+                  final dismissedIds = productsProvider.dismissedAlertProductIds;
+                  final activeCritical = products.where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id)).toList();
+                  _showNotificationsBottomSheet(context, activeCritical);
+                },
               ),
-              if (lowStockProducts > 0)
+              if (activeAlertsCount > 0)
                 Positioned(
                   right: 8,
                   top: 8,
@@ -352,7 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       minHeight: 16,
                     ),
                     child: Text(
-                      '$lowStockProducts',
+                      '$activeAlertsCount',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
@@ -477,12 +527,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Gestión de Proyectos',
                       onTap: () => context.push('/projects'),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Divider(height: 1),
+                      child: Divider(height: 1, color: dividerColor),
                     ),
                     _buildDrawerItem(
                       context: context,
@@ -490,12 +540,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Generador de Etiquetas (QR)',
                       onTap: () => context.push('/qr-generator'),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Divider(height: 1),
+                      child: Divider(height: 1, color: dividerColor),
                     ),
                   ],
                   _buildDrawerItem(
@@ -510,17 +560,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Movimientos',
                     onTap: () => context.push('/movements'),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Divider(height: 1, color: dividerColor),
                   ),
                   ThemeToggleTile(
                     isDarkMode: themeProvider.isDarkMode,
                     onChanged: themeProvider.toggleTheme,
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Divider(height: 1, color: dividerColor),
                   ),
                   _buildDrawerItem(
                     context: context,
@@ -568,7 +618,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
               if (user?.role == 'admin') ...[
-                _buildMainValueCard(context, totalValue),
+                _buildMainValueCard(context, totalValuePEN, totalValueUSD),
                 const SizedBox(height: 24),
               ],
 
@@ -806,7 +856,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMainValueCard(BuildContext context, double totalValue) {
+  Widget _buildMainValueCard(BuildContext context, double totalValuePEN, double totalValueUSD) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
@@ -860,13 +910,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
-                        child: Text(
-                          '\$',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        child: Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
                     ),
@@ -893,41 +940,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '\$${totalValue.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        color: Color(0xFF10B981),
-                        size: 12,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Soles (PEN)',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'S/. ${totalValuePEN.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        '+8.2% respecto al mes pasado',
-                        style: TextStyle(color: Colors.white, fontSize: 13),
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Dólares (USD)',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '\$ ${totalValueUSD.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

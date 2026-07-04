@@ -33,35 +33,69 @@ class MainLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 2,
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(index, context),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Inicio',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+              width: 1,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Productos',
+        ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
+              if (states.contains(WidgetState.selected)) {
+                return TextStyle(
+                  color: actionColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                );
+              }
+              return TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              );
+            }),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner),
-            label: 'Escáner',
+          child: NavigationBar(
+            backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+            elevation: 0,
+            height: 65,
+            indicatorColor: actionColor.withValues(alpha: 0.12),
+            selectedIndex: _calculateSelectedIndex(context),
+            onDestinationSelected: (index) => _onItemTapped(index, context),
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                selectedIcon: Icon(Icons.home, color: actionColor),
+                label: 'Inicio',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.inventory_2_outlined, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                selectedIcon: Icon(Icons.inventory_2, color: actionColor),
+                label: 'Productos',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.qr_code_scanner_outlined, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                selectedIcon: Icon(Icons.qr_code_scanner, color: actionColor),
+                label: 'Escáner',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.swap_horiz_outlined, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                selectedIcon: Icon(Icons.swap_horiz, color: actionColor),
+                label: 'Movimientos',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.swap_horiz_outlined),
-            selectedIcon: Icon(Icons.swap_horiz),
-            label: 'Movimientos',
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -13,8 +13,24 @@ class PdfService {
   ) async {
     final pdf = pw.Document();
 
-    // Convertir a tabla de datos
-    final tableHeaders = ['Fecha', 'Producto', 'Tipo', 'Cantidad', 'Nota'];
+    // Intentar cargar la imagen del logo desde assets
+    pw.MemoryImage? logoImage;
+    try {
+      final ByteData logoData = await rootBundle.load('assets/icon.png');
+      final Uint8List logoBytes = logoData.buffer.asUint8List();
+      logoImage = pw.MemoryImage(logoBytes);
+    } catch (e) {
+      logoImage = null;
+    }
+
+    // Convertir a tabla de datos con header 'Observación'
+    final tableHeaders = [
+      'Fecha',
+      'Producto',
+      'Tipo',
+      'Cantidad',
+      'Observación',
+    ];
 
     final tableData = movements.map((mov) {
       final product = products.firstWhere(
@@ -39,9 +55,10 @@ class PdfService {
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return [
-            // Cabecera
+            // Cabecera alineada y con logo
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -49,31 +66,34 @@ class PdfService {
                     pw.Text(
                       'PROENERGIM',
                       style: const pw.TextStyle(
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.blue900,
                       ),
                     ),
+                    pw.SizedBox(height: 4),
                     pw.Text(
-                      'Reporte Oficial de Movimientos de Inventario',
+                      'Reporte de Movimientos de Inventario',
                       style: const pw.TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: PdfColors.grey700,
                       ),
                     ),
                   ],
                 ),
-                pw.Text(
-                  'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
-                  style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
-                ),
+                if (logoImage != null)
+                  pw.Container(
+                    width: 45,
+                    height: 45,
+                    child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                  ),
               ],
             ),
             pw.SizedBox(height: 20),
-            pw.Divider(),
+            pw.Divider(color: PdfColors.blue900, thickness: 1),
             pw.SizedBox(height: 20),
 
-            // Tabla
+            // Tabla con anchos optimizados
             pw.TableHelper.fromTextArray(
               headers: tableHeaders,
               data: tableData,
@@ -86,6 +106,13 @@ class PdfService {
                 color: PdfColors.blue800,
               ),
               cellHeight: 30,
+              columnWidths: {
+                0: const pw.FixedColumnWidth(110), // Fecha
+                1: const pw.FixedColumnWidth(150), // Producto
+                2: const pw.FixedColumnWidth(65), // Tipo (Entrada/Salida)
+                3: const pw.FixedColumnWidth(65), // Cantidad
+                4: const pw.FixedColumnWidth(110), // Observación
+              },
               cellAlignments: {
                 0: pw.Alignment.centerLeft,
                 1: pw.Alignment.centerLeft,
@@ -94,25 +121,70 @@ class PdfService {
                 4: pw.Alignment.centerLeft,
               },
             ),
-
-            pw.SizedBox(height: 30),
-            // Pie de firma
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
-              children: [
-                pw.Column(
-                  children: [
-                    pw.Container(width: 150, height: 1, color: PdfColors.black),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'Firma Autorizada',
-                      style: const pw.TextStyle(fontSize: 10),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ];
+        },
+        footer: (pw.Context context) {
+          final now = DateTime.now();
+          final weekdays = [
+            'Domingo',
+            'Lunes',
+            'Martes',
+            'Miércoles',
+            'Jueves',
+            'Viernes',
+            'Sábado',
+          ];
+          final String dayName = weekdays[now.weekday % 7];
+          final String formattedDateTime =
+              "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
+
+          return pw.Column(
+            children: [
+              // Bloque de firma de autorización (siempre en la parte inferior de la página)
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.SizedBox(height: 30),
+                      pw.Container(width: 150, height: 1, color: PdfColors.black),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Firma',
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 8),
+              pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Generado el: $formattedDateTime',
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                  pw.Text(
+                    'Página ${context.pageNumber} de ${context.pagesCount}',
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
         },
       ),
     );
@@ -130,9 +202,18 @@ class PdfService {
   }) async {
     final pdf = pw.Document();
     final now = DateTime.now();
-    final weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    final weekdays = [
+      'Domingo',
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
     final String dayName = weekdays[now.weekday % 7];
-    final String formattedDateTime = "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
+    final String formattedDateTime =
+        "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
 
     // Intentar cargar la imagen del logo desde assets
     pw.MemoryImage? logoImage;
@@ -245,23 +326,34 @@ class PdfService {
           // Dividir en filas para la cuadrícula
           final List<pw.Widget> gridRows = [];
           for (int i = 0; i < items.length; i += crossAxisCount) {
-            final end = (i + crossAxisCount < items.length) ? i + crossAxisCount : items.length;
+            final end = (i + crossAxisCount < items.length)
+                ? i + crossAxisCount
+                : items.length;
             final rowItems = items.sublist(i, end);
-            
+
             // Rellenar la fila si faltan elementos para mantener la proporción de columnas
             while (rowItems.length < crossAxisCount) {
-              rowItems.add(pw.Opacity(opacity: 0.0, child: pw.Container(height: 1)));
+              rowItems.add(
+                pw.Opacity(opacity: 0.0, child: pw.Container(height: 1)),
+              );
             }
 
             gridRows.add(
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: rowItems.map((item) => pw.Expanded(
-                  child: pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                    child: pw.Center(child: item),
-                  ),
-                )).toList(),
+                children: rowItems
+                    .map(
+                      (item) => pw.Expanded(
+                        child: pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 8,
+                          ),
+                          child: pw.Center(child: item),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             );
           }
@@ -341,11 +433,17 @@ class PdfService {
                 children: [
                   pw.Text(
                     'Generado el: $formattedDateTime',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey600,
+                    ),
                   ),
                   pw.Text(
                     'Página ${context.pageNumber} de ${context.pagesCount}',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey600,
+                    ),
                   ),
                 ],
               ),

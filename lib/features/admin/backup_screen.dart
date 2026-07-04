@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../core/database/database_helper.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/admin_ui.dart';
+import '../../core/widgets/custom_snackbar.dart';
 
 class BackupScreen extends StatelessWidget {
   const BackupScreen({super.key});
@@ -20,7 +21,7 @@ class BackupScreen extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+        CustomSnackBar.showError(context, 'Exportación fallida');
       }
     }
   }
@@ -60,7 +61,7 @@ class BackupScreen extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al importar: $e')));
+        CustomSnackBar.showError(context, 'Importación fallida');
       }
     }
   }
