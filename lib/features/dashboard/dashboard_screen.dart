@@ -201,7 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             if (!animationCompleted) {
-              Future.delayed(const Duration(milliseconds: 250), () {
+              Future.delayed(const Duration(milliseconds: 450), () {
                 if (context.mounted) {
                   setModalState(() {
                     animationCompleted = true;
@@ -294,10 +294,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (!animationCompleted)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 48),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 56),
                           child: Center(
-                            child: CircularProgressIndicator(),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 36,
+                                  height: 36,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3.2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Buscando alertas...',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       else if (totalActiveNotifications == 0)
