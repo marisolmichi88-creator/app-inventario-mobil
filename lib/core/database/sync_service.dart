@@ -39,7 +39,7 @@ class SyncService {
       //     );
       //   }
       // }
-      //
+      // :)
       debugPrint('Datos sincronizados (simulado).');
     } catch (e) {
       debugPrint('Error sincronizando datos: $e');
