@@ -51,6 +51,7 @@ dependencies:
   file_selector: ^1.0.3
   path: ^1.9.1
   flutter_local_notifications: ^17.2.2
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:

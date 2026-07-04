@@ -20,7 +20,7 @@ class DatabaseHelper {
     String path = await getDatabasePath();
     return await openDatabase(
       path,
-      version: 6,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -31,8 +31,8 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 6) {
-      // Recrear tablas completas por el cambio en serialNumber y currency
+    if (oldVersion < 9) {
+      // Recrear tablas completas por el cambio en serialNumber, currency y seed de movimientos
       await db.execute('DROP TABLE IF EXISTS movements');
       await db.execute('DROP TABLE IF EXISTS products');
       await db.execute('DROP TABLE IF EXISTS categories');
@@ -138,10 +138,14 @@ class DatabaseHelper {
       )
     ''');
 
-    // Insertar datos de prueba base (Admin user)
+    // Insertar datos de prueba base (Admin y Operador)
     await db.execute('''
       INSERT INTO users (name, email, password, role) 
-      VALUES ('Admin', 'admin@test.com', '123', 'admin')
+      VALUES ('Admin', 'admin@test.com', '123456', 'admin')
+    ''');
+    await db.execute('''
+      INSERT INTO users (name, email, password, role) 
+      VALUES ('Trabajador', 'operador@test.com', '123456', 'operator')
     ''');
     
     // Sembrar datos de prueba para nuevas instalaciones

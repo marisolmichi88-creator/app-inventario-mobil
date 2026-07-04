@@ -225,6 +225,8 @@ class PdfService {
       logoImage = null;
     }
 
+
+
     int crossAxisCount = 3;
     if (products.length == 1) {
       crossAxisCount = 1;
@@ -277,6 +279,9 @@ class PdfService {
         build: (pw.Context context) {
           // Construir los stickers
           final List<pw.Widget> items = products.map<pw.Widget>((prod) {
+            final double logoSize = products.length == 1 ? 30 : 16;
+            final double spacing = products.length == 1 ? 8 : 4;
+
             return pw.Container(
               height: cardHeight,
               width: cardWidth,
@@ -288,16 +293,24 @@ class PdfService {
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
+                  if (logoImage != null) ...[
+                    pw.Container(
+                      width: logoSize,
+                      height: logoSize,
+                      child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                    ),
+                    pw.SizedBox(height: spacing),
+                  ],
                   pw.Text(
                     prod.name.toUpperCase(),
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       fontSize: nameFontSize,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 8),
+                  pw.SizedBox(height: spacing),
                   pw.SizedBox(
                     height: isBarcode ? barcodeHeight : qrSize,
                     width: isBarcode ? barcodeWidth : qrSize,
@@ -310,7 +323,7 @@ class PdfService {
                       drawText: false,
                     ),
                   ),
-                  pw.SizedBox(height: 8),
+                  pw.SizedBox(height: spacing),
                   pw.Text(
                     'SKU: ${prod.code}',
                     style: const pw.TextStyle(

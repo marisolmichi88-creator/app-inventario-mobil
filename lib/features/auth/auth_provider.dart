@@ -71,4 +71,27 @@ class AuthProvider with ChangeNotifier {
     _currentUser = null;
     notifyListeners();
   }
+
+  Future<void> updateProfile(String name, String email) async {
+    if (_currentUser == null) return;
+    final db = await _dbHelper.database;
+    await db.update(
+      'users',
+      {
+        'name': name,
+        'email': email,
+      },
+      where: 'id = ?',
+      whereArgs: [_currentUser!.id],
+    );
+    _currentUser = UserModel(
+      id: _currentUser!.id,
+      name: name,
+      email: email,
+      password: _currentUser!.password,
+      role: _currentUser!.role,
+      isActive: _currentUser!.isActive,
+    );
+    notifyListeners();
+  }
 }

@@ -192,24 +192,54 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 }).toList();
 
                 if (filteredMovements.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.history_rounded,
-                          size: 80,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No hay movimientos en esta categoría',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 16,
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+                      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: AppShadows.card(isDark: isDark),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: actionColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.history_rounded,
+                              color: actionColor,
+                              size: 48,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 24),
+                          Text(
+                            'Sin movimientos registrados',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No se encontraron registros de entrada o salida para este filtro en el historial de movimientos.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }

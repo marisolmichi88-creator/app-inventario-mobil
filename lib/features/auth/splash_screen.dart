@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/app_shadows.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -19,12 +20,11 @@ class SplashScreen extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  'assets/icon.png', 
+                child: SvgPicture.asset(
+                  'assets/icon.svg', 
                   height: 120, 
                   width: 120, 
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory_2, size: 100, color: Colors.white),
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

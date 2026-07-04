@@ -77,7 +77,7 @@ class ProductsProvider with ChangeNotifier {
         NotificationService().showNotification(
           id: productId,
           title: 'Alerta de Stock Crítico',
-          body: 'Presiona aquí para ver más opciones.',
+          body: 'Un producto llegó al stock mínimo.\nPresiona para ver más.',
         );
       }
       

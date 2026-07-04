@@ -2,18 +2,31 @@ import 'package:flutter/foundation.dart';
 import '../../core/database/database_helper.dart';
 import '../models/movement_model.dart';
 import 'products_provider.dart';
+import '../../core/services/notification_service.dart';
 
 class MovementsProvider with ChangeNotifier {
   List<MovementModel> _movements = [];
   bool _isLoading = false;
+  final Set<int> _dismissedMovementNotificationIds = {};
 
   List<MovementModel> get movements => _movements;
   bool get isLoading => _isLoading;
+  Set<int> get dismissedMovementNotificationIds => _dismissedMovementNotificationIds;
 
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final ProductsProvider _productsProvider;
 
   MovementsProvider(this._productsProvider);
+
+  void dismissMovementNotification(int id) {
+    _dismissedMovementNotificationIds.add(id);
+    notifyListeners();
+  }
+
+  void dismissAllMovementNotifications(List<int> ids) {
+    _dismissedMovementNotificationIds.addAll(ids);
+    notifyListeners();
+  }
 
   Future<void> fetchMovements() async {
     _isLoading = true;
@@ -33,7 +46,7 @@ class MovementsProvider with ChangeNotifier {
 
   Future<bool> registerMovement(MovementModel movement) async {
     final db = await _dbHelper.database;
-    
+
     // Si es una salida, validar stock suficiente
     if (movement.type == 'OUT') {
       final List<Map<String, dynamic>> prodMaps = await db.query(
@@ -41,7 +54,6 @@ class MovementsProvider with ChangeNotifier {
         where: 'id = ?',
         whereArgs: [movement.productId],
       );
-      
       if (prodMaps.isNotEmpty) {
         final currentStock = prodMaps.first['stock'] as int;
         if (currentStock < movement.quantity) {
@@ -51,13 +63,26 @@ class MovementsProvider with ChangeNotifier {
     }
 
     // Insertar el movimiento
-    await db.insert('movements', movement.toMap());
+    final insertedId = await db.insert('movements', movement.toMap());
     
     // Actualizar el stock del producto
     await _productsProvider.updateStock(
       movement.productId,
       movement.quantity,
       movement.type,
+    );
+
+    // Disparar notificación push local en el celular
+    final isEntry = movement.type == 'IN';
+    final title = isEntry ? 'Entrada de Inventario' : 'Salida de Inventario';
+    final body = isEntry
+        ? 'Se registraron ${movement.quantity} unidades de...\nPresiona para ver más.'
+        : 'Se retiraron ${movement.quantity} unidades de...\nPresiona para ver más.';
+
+    NotificationService().showNotification(
+      id: insertedId,
+      title: title,
+      body: body,
     );
 
     await fetchMovements();

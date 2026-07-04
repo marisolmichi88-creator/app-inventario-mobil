@@ -10,6 +10,9 @@ import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/theme_toggle_tile.dart';
+import '../../core/widgets/custom_snackbar.dart';
+import 'package:intl/intl.dart';
+import '../../data/models/movement_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,7 +32,145 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _showNotificationsBottomSheet(BuildContext context, List<ProductModel> criticalProducts) {
+  Widget _buildStockAlertItem(BuildContext context, ProductModel prod, ProductsProvider provider, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.red,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  prod.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              size: 20,
+            ),
+            onPressed: () {
+              provider.dismissAlert(prod.id!);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMovementAlertItem(BuildContext context, MovementModel mov, ProductModel prod, MovementsProvider provider, bool isDark) {
+    final isEntry = mov.type == 'IN';
+    final typeColor = isEntry ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    
+    DateTime parsedDate = DateTime.tryParse(mov.date) ?? DateTime.now();
+    String formattedDate = DateFormat('dd/MM/yyyy • hh:mm a').format(parsedDate);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : (isEntry ? Colors.green.shade50 : Colors.red.shade50).withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark 
+              ? typeColor.withValues(alpha: 0.2) 
+              : (isEntry ? Colors.green.shade100 : Colors.red.shade100),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: typeColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isEntry ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              color: typeColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${isEntry ? 'Entrada' : 'Salida'}: ${prod.name}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Cantidad: ${mov.quantity} | $formattedDate',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              size: 20,
+            ),
+            onPressed: () {
+              provider.dismissMovementNotification(mov.id!);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNotificationsBottomSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     showModalBottomSheet(
@@ -37,12 +178,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Consumer<ProductsProvider>(
-          builder: (context, productsProvider, child) {
+        return Consumer2<ProductsProvider, MovementsProvider>(
+          builder: (context, productsProvider, movementsProvider, child) {
             final dismissedIds = productsProvider.dismissedAlertProductIds;
             final activeCritical = productsProvider.products
                 .where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id))
                 .toList();
+
+            final dismissedMovementIds = movementsProvider.dismissedMovementNotificationIds;
+            final activeMovements = movementsProvider.movements
+                .where((m) => !dismissedMovementIds.contains(m.id))
+                .take(10)
+                .toList();
+
+            final totalActiveNotifications = activeCritical.length + activeMovements.length;
 
             return Container(
               decoration: BoxDecoration(
@@ -50,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                 left: 24,
                 right: 24,
                 top: 16,
@@ -81,12 +230,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      if (activeCritical.isNotEmpty)
+                      if (totalActiveNotifications > 0)
                         TextButton.icon(
                           onPressed: () {
-                            productsProvider.dismissAllAlerts(
-                              activeCritical.map((p) => p.id!).toList(),
-                            );
+                            if (activeCritical.isNotEmpty) {
+                              productsProvider.dismissAllAlerts(
+                                activeCritical.map((p) => p.id!).toList(),
+                              );
+                            }
+                            if (activeMovements.isNotEmpty) {
+                              movementsProvider.dismissAllMovementNotifications(
+                                activeMovements.map((m) => m.id!).toList(),
+                              );
+                            }
                             Navigator.pop(context);
                           },
                           icon: const Icon(Icons.clear_all_rounded, size: 16, color: Colors.redAccent),
@@ -105,7 +261,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (activeCritical.isEmpty)
+                  if (totalActiveNotifications == 0)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(
@@ -127,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Todos tus productos tienen stock suficiente.',
+                              'No hay alertas de stock ni movimientos recientes.',
                               style: TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           ],
@@ -135,94 +291,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     )
                   else ...[
-                    Text(
-                      'Alertas de inventario',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                        maxHeight: MediaQuery.of(context).size.height * 0.5,
                       ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: activeCritical.length,
-                        itemBuilder: (context, index) {
-                          final prod = activeCritical[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.red.shade50.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark ? Colors.red.withValues(alpha: 0.2) : Colors.red.shade100,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (activeMovements.isNotEmpty) ...[
+                              Text(
+                                'Movimientos recientes',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withValues(alpha: 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
+                              const SizedBox(height: 10),
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: activeMovements.length,
+                                itemBuilder: (context, index) {
+                                  final mov = activeMovements[index];
+                                  final prod = productsProvider.products.firstWhere(
+                                    (p) => p.id == mov.productId,
+                                    orElse: () => ProductModel(id: -1, name: 'Producto Desconocido', code: 'N/A'),
+                                  );
+                                  return _buildMovementAlertItem(context, mov, prod, movementsProvider, isDark);
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            if (activeCritical.isNotEmpty) ...[
+                              Text(
+                                'Alertas de stock crítico',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  letterSpacing: 0.5,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        prod.name,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).colorScheme.onSurface,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Código: ${prod.code} | Stock: ${prod.stock} (Mín: ${prod.minStock})',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete_outline_rounded,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    productsProvider.dismissAlert(prod.id!);
-                                    if (activeCritical.length <= 1) {
-                                      Navigator.pop(context);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                              ),
+                              const SizedBox(height: 10),
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: activeCritical.length,
+                                itemBuilder: (context, index) {
+                                  final prod = activeCritical[index];
+                                  return _buildStockAlertItem(context, prod, productsProvider, isDark);
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 24),
                 ],
               ),
             );
@@ -232,93 +360,257 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildProfileFormField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    required bool isDark,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      style: TextStyle(
+        color: isDark ? Colors.white : Colors.black87,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.black54,
+          fontSize: 14,
+        ),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        filled: true,
+        fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
+    );
+  }
+
   void _showProfileBottomSheet(BuildContext context, dynamic user) {
     if (user == null) return;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
     
+    final nameController = TextEditingController(text: user.name);
+    final emailController = TextEditingController(text: user.email);
+    final formKey = GlobalKey<FormState>();
+    bool isEditing = false;
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 24),
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
-                child: Icon(Icons.person, size: 40, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD)),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 16,
               ),
-              const SizedBox(height: 16),
-              Text(
-                user.name,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                user.email,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: (user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  user.role == 'admin' ? 'Administrador' : 'Operador',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      if (!isEditing) ...[
+                        CircleAvatar(
+                          radius: 36,
+                          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
+                          child: Icon(Icons.person, size: 40, color: actionColor),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          user.name,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.email,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: (user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            user.role == 'admin' ? 'Administrador' : 'Operador',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: user.role == 'admin' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setModalState(() {
+                                isEditing = true;
+                              });
+                            },
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: actionColor,
+                              foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Editar Perfil',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildProfileFormField(
+                          controller: nameController,
+                          label: 'Nombre completo',
+                          hint: 'Nombre y Apellido',
+                          icon: Icons.person_outline,
+                          isDark: isDark,
+                          validator: (val) => val == null || val.isEmpty ? 'Requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildProfileFormField(
+                          controller: emailController,
+                          label: 'Correo electrónico',
+                          hint: 'correo@gmail.com',
+                          icon: Icons.email_outlined,
+                          isDark: isDark,
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'Requerido';
+                            if (!val.contains('@')) return 'Correo inválido';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    isEditing = false;
+                                    nameController.text = user.name;
+                                    emailController.text = user.email;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: Text(
+                                  'Cancelar',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: actionColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (formKey.currentState!.validate()) {
+                                    await context.read<AuthProvider>().updateProfile(
+                                      nameController.text.trim(),
+                                      emailController.text.trim().toLowerCase(),
+                                    );
+                                    if (context.mounted) {
+                                      CustomSnackBar.showSuccess(context, 'Perfil actualizado');
+                                      Navigator.pop(context);
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: actionColor,
+                                  foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Guardar',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.read<AuthProvider>().logout();
-                    context.go('/login');
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -337,9 +629,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lowStockProducts = products
         .where((p) => p.stock <= p.minStock)
         .length;
-    final activeAlertsCount = products
+    final activeStockAlertsCount = products
         .where((p) => p.stock <= p.minStock && !productsProvider.dismissedAlertProductIds.contains(p.id))
         .length;
+    final activeMovementAlertsCount = movementsProvider.movements
+        .where((m) => !movementsProvider.dismissedMovementNotificationIds.contains(m.id))
+        .take(10)
+        .length;
+    final activeAlertsCount = activeStockAlertsCount + activeMovementAlertsCount;
     final normalStockProducts = totalProducts - lowStockProducts;
     final totalValuePEN = products
         .where((p) => p.currency == 'PEN')
@@ -382,9 +679,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: isDark ? Colors.white : Colors.black87,
                 ),
                 onPressed: () {
-                  final dismissedIds = productsProvider.dismissedAlertProductIds;
-                  final activeCritical = products.where((p) => p.stock <= p.minStock && !dismissedIds.contains(p.id)).toList();
-                  _showNotificationsBottomSheet(context, activeCritical);
+                  _showNotificationsBottomSheet(context);
                 },
               ),
               if (activeAlertsCount > 0)

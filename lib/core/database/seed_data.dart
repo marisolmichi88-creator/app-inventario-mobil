@@ -1123,4 +1123,24 @@ Future<void> insertSeedData(Database db) async {
       'unit': 'UND',
       'price': 24.0
     });
+
+    // Insertar algunos movimientos iniciales de muestra
+    await db.insert('movements', {
+      'productId': 1,
+      'warehouseId': 10,
+      'userId': 1,
+      'type': 'IN',
+      'quantity': 10,
+      'date': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
+      'notes': 'Ingreso inicial de stock',
+    });
+    await db.insert('movements', {
+      'productId': 2,
+      'warehouseId': 10,
+      'userId': 1,
+      'type': 'OUT',
+      'quantity': 3,
+      'date': DateTime.now().subtract(const Duration(minutes: 30)).toIso8601String(),
+      'notes': 'Despacho de prueba',
+    });
 }
