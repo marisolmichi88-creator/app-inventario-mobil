@@ -661,36 +661,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        if (user.role == 'admin') ...[
-                          const Divider(),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                setModalState(() {
-                                  isEditing = true;
-                                });
-                              },
-                              icon: const Icon(Icons.edit_outlined),
-                              label: const Text(
-                                'Editar Perfil',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setModalState(() {
+                                isEditing = true;
+                              });
+                            },
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text(
+                              'Editar Perfil',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: actionColor,
+                              foregroundColor: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: actionColor,
-                                foregroundColor: isDark
-                                    ? const Color(0xFF0F172A)
-                                    : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
+                              elevation: 0,
                             ),
                           ),
-                        ],
+                        ),
                       ] else ...[
                         Text(
                           'Editar Perfil',
