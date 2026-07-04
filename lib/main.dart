@@ -12,9 +12,16 @@ import 'data/providers/products_provider.dart';
 import 'data/providers/movements_provider.dart';
 import 'data/providers/theme_provider.dart';
 import 'core/services/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar Supabase
+  await Supabase.initialize(
+    url: 'https://hudjbhnyepdbhnpzdcru.supabase.co',
+    publishableKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1ZGpiaG55ZXBkYmhucHpkY3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzQwNDgsImV4cCI6MjA5ODc1MDA0OH0.QwSiKPN1b9s5Ht0v-vxgHY8FdG4-lbF-884xocJua5o',
+  );
 
   // Inicializar base de datos
   await DatabaseHelper().database;

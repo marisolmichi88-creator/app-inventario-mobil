@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/splash_screen.dart';
+import '../../features/auth/forgot_password_screen.dart';
 import '../../features/admin/users_screen.dart';
 import '../../features/admin/categories_screen.dart';
 import '../../features/admin/warehouses_screen.dart';
@@ -26,6 +27,7 @@ class AppRouter {
       redirect: (context, state) {
         final isSplash = state.uri.toString() == '/splash';
         final isLoginRoute = state.uri.toString() == '/login';
+        final isForgotPasswordRoute = state.uri.toString() == '/forgot-password';
         
         if (authProvider.isLoading) {
           return isSplash ? null : '/splash';
@@ -34,10 +36,10 @@ class AppRouter {
         final isAuthenticated = authProvider.isAuthenticated;
 
         if (!isAuthenticated) {
-          return isLoginRoute ? null : '/login';
+          return (isLoginRoute || isForgotPasswordRoute) ? null : '/login';
         }
 
-        if (isAuthenticated && (isLoginRoute || isSplash)) {
+        if (isAuthenticated && (isLoginRoute || isSplash || isForgotPasswordRoute)) {
           return '/';
         }
 
@@ -51,6 +53,10 @@ class AppRouter {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/forgot-password',
+          builder: (context, state) => const ForgotPasswordScreen(),
         ),
         ShellRoute(
           builder: (context, state, child) {
