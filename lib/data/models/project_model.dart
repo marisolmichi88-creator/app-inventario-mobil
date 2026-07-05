@@ -1,5 +1,5 @@
 class ProjectModel {
-  final int? id;
+  final String? id;
   final String name;
   final String? description;
   final String? startDate;
@@ -20,20 +20,21 @@ class ProjectModel {
       id: map['id'],
       name: map['name'],
       description: map['description'],
-      startDate: map['startDate'],
-      endDate: map['endDate'],
-      status: map['status'],
+      startDate: map['start_date'],
+      endDate: map['end_date'],
+      status: map['status'] ?? 'active',
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'name': name,
       'description': description,
-      'startDate': startDate,
-      'endDate': endDate,
+      'start_date': startDate,
+      'end_date': endDate,
       'status': status,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../core/database/database_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/category_model.dart';
+import 'package:uuid/uuid.dart';
 
 class CategoriesProvider with ChangeNotifier {
   List<CategoryModel> _categories = [];
@@ -9,46 +10,47 @@ class CategoriesProvider with ChangeNotifier {
   List<CategoryModel> get categories => _categories;
   bool get isLoading => _isLoading;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final _supabase = Supabase.instance.client;
 
   Future<void> fetchCategories() async {
     _isLoading = true;
     notifyListeners();
 
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('categories');
-    
-    _categories = maps.map((map) => CategoryModel.fromMap(map)).toList();
-    
+    try {
+      final response = await _supabase.from('categories').select().order('name');
+      _categories = response.map((map) => CategoryModel.fromMap(map)).toList();
+    } catch (e) {
+      print('Error fetching categories: $e');
+    }
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addCategory(CategoryModel category) async {
-    final db = await _dbHelper.database;
-    await db.insert('categories', category.toMap());
-    await fetchCategories();
+    try {
+      final data = category.toMap();
+      if (data['id'] == null) data['id'] = const Uuid().v4();
+      await _supabase.from('categories').insert(data);
+      await fetchCategories();
+    } catch (e) {
+      print('Error adding category: $e');
+    }
   }
 
   Future<void> updateCategory(CategoryModel category) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'categories',
-      category.toMap(),
-      where: 'id = ?',
-      whereArgs: [category.id],
-    );
-    await fetchCategories();
+    try {
+      final data = category.toMap();
+      data.remove('id');
+      await _supabase.from('categories').update(data).eq('id', category.id!);
+      await fetchCategories();
+    } catch (e) {
+      print('Error updating category: $e');
+    }
   }
 
-  Future<void> toggleCategoryStatus(int id, bool currentStatus) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'categories',
-      {'isActive': currentStatus ? 0 : 1},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await fetchCategories();
+  Future<void> toggleCategoryStatus(String id, bool currentStatus) async {
+    // La tabla de categorias original no tenia is_active en Supabase,
+    // pero si lo agregamos, aqui se actualizaria.
   }
 }

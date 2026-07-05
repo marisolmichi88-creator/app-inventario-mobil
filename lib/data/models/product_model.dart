@@ -1,9 +1,9 @@
 class ProductModel {
-  final int? id;
+  final String? id;
   final String code;
   final String? serialNumber;
   final String name;
-  final int? categoryId;
+  final String? categoryId;
   final int stock;
   final int minStock;
   final String? unit;
@@ -29,31 +29,34 @@ class ProductModel {
     return ProductModel(
       id: map['id'],
       code: map['code'],
-      serialNumber: map['serialNumber'],
+      serialNumber: map['serial_number'],
       name: map['name'],
-      categoryId: map['categoryId'],
+      categoryId: map['category_id'],
       stock: map['stock'] ?? 0,
-      minStock: map['minStock'] ?? 0,
+      minStock: map['min_stock'] ?? 0,
       unit: map['unit'],
       price: map['price']?.toDouble() ?? 0.0,
       currency: map['currency'] ?? 'PEN',
-      isActive: map['isActive'] == 1,
+      isActive: map['is_active'] ?? true,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'code': code,
-      'serialNumber': serialNumber,
+      'serial_number': serialNumber,
       'name': name,
-      'categoryId': categoryId,
+      'category_id': categoryId,
       'stock': stock,
-      'minStock': minStock,
+      'min_stock': minStock,
       'unit': unit,
       'price': price,
       'currency': currency,
-      'isActive': isActive ? 1 : 0,
+      'is_active': isActive,
     };
+    if (id != null) {
+      map['id'] = id;
+    }
+    return map;
   }
 }

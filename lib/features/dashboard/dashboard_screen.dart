@@ -439,7 +439,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           .firstWhere(
                                             (p) => p.id == mov.productId,
                                             orElse: () => ProductModel(
-                                              id: -1,
+                                              id: '-1',
                                               name: 'Producto Desconocido',
                                               code: 'N/A',
                                             ),

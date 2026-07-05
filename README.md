@@ -12,7 +12,7 @@ Aplicación corporativa desarrollada en **Flutter** para la gestión de inventar
 
 ## Tecnologías Principales
 - **Flutter** (Framework UI)
-- **SQLite** (Base de datos local ultrarrápida / Offline-first)
+- **Supabase (PostgreSQL)** (Backend en la nube y base de datos en tiempo real)
 - **Provider** (Gestión de estado)
 - **GoRouter** (Navegación y ShellRoutes)
 - **Mobile Scanner & QR Flutter** (Lectura y Generación de Códigos)

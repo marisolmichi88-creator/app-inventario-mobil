@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/database/database_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -11,28 +11,37 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _currentUser != null;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-
   Future<void> checkAuthStatus() async {
     _isLoading = true;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt('userId');
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
+        final authUser = session.user;
+        
+        // Cargar perfil del usuario desde Supabase
+        final profile = await Supabase.instance.client
+            .from('user_profiles')
+            .select()
+            .eq('auth_user_id', authUser.id)
+            .maybeSingle();
 
-    if (userId != null) {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> result = await db.query(
-        'users',
-        where: 'id = ? AND isActive = 1',
-        whereArgs: [userId],
-      );
-
-      if (result.isNotEmpty) {
-        _currentUser = UserModel.fromMap(result.first);
-      } else {
-        await logout(); // Invalida sesión si el usuario fue desactivado
+        if (profile != null && profile['is_active'] == true) {
+          _currentUser = UserModel(
+            id: profile['id'],
+            name: profile['name'],
+            email: profile['email'],
+            password: '', // Password is not returned
+            role: profile['role'],
+            isActive: profile['is_active'] == true,
+          );
+        } else {
+          await logout();
+        }
       }
+    } catch (e) {
+      print('Auth Check Error: $e');
     }
 
     _isLoading = false;
@@ -43,21 +52,40 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> result = await db.query(
-      'users',
-      where: 'email = ? AND password = ? AND isActive = 1',
-      whereArgs: [email, password],
-    );
+    try {
+      final AuthResponse res = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-    if (result.isNotEmpty) {
-      _currentUser = UserModel.fromMap(result.first);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('userId', _currentUser!.id!);
-      
-      _isLoading = false;
-      notifyListeners();
-      return true;
+      final authUser = res.user;
+      if (authUser != null) {
+        // Fetch profile
+        final profile = await Supabase.instance.client
+            .from('user_profiles')
+            .select()
+            .eq('auth_user_id', authUser.id)
+            .maybeSingle();
+
+        if (profile != null && profile['is_active'] == true) {
+          _currentUser = UserModel(
+            id: profile['id'],
+            name: profile['name'],
+            email: profile['email'],
+            password: '',
+            role: profile['role'],
+            isActive: profile['is_active'] == true,
+          );
+          
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        } else {
+          await Supabase.instance.client.auth.signOut();
+        }
+      }
+    } catch (e) {
+      print('Login error: $e');
     }
 
     _isLoading = false;
@@ -66,24 +94,18 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userId');
+    await Supabase.instance.client.auth.signOut();
     _currentUser = null;
     notifyListeners();
   }
 
   Future<void> updateProfile(String name, String email) async {
     if (_currentUser == null) return;
-    final db = await _dbHelper.database;
-    await db.update(
-      'users',
-      {
-        'name': name,
-        'email': email,
-      },
-      where: 'id = ?',
-      whereArgs: [_currentUser!.id],
-    );
+    
+    await Supabase.instance.client.from('user_profiles').update({
+      'name': name,
+      'email': email,
+    }).eq('id', _currentUser!.id!);
     _currentUser = UserModel(
       id: _currentUser!.id,
       name: name,
@@ -93,5 +115,25 @@ class AuthProvider with ChangeNotifier {
       isActive: _currentUser!.isActive,
     );
     notifyListeners();
+  }
+
+  Future<void> sendPasswordResetCode(String email) async {
+    await Supabase.instance.client.auth.resetPasswordForEmail(email);
+  }
+
+  Future<void> verifyCodeAndResetPassword(String email, String token, String newPassword) async {
+    final response = await Supabase.instance.client.auth.verifyOTP(
+      type: OtpType.recovery,
+      token: token,
+      email: email,
+    );
+    
+    if (response.session != null) {
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+    } else {
+      throw Exception('Código inválido o expirado.');
+    }
   }
 }

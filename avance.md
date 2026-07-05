@@ -2,7 +2,7 @@
 
 Este documento resume de manera ejecutiva el avance del desarrollo de la aplicación móvil de inventario para Proenergim.
 
-## 📊 Porcentaje de Avance Estimado: 85%
+## 📊 Porcentaje de Avance Estimado: 95%
 
 ### Hitos Logrados (Sprint 1 al Sprint 5)
 ✅ **Diseño UX/UI Premium:** Implementación de un tema claro corporativo, interfaz responsiva y altamente pulida con animaciones sutiles.
@@ -20,10 +20,16 @@ Este documento resume de manera ejecutiva el avance del desarrollo de la aplicac
    - **Seguridad por Roles:** El menú lateral y el Dashboard se transforman dinámicamente. El rol `worker` no tiene acceso a utilidades financieras, balances, gestión de usuarios, ni gráficos gerenciales, evitando fugas de información.
    - **Copias de Seguridad (Backup & Restore):** El administrador ahora puede exportar toda la base de datos `inventario.db` a la memoria del teléfono y restaurarla, utilizando la librería oficial de Google `file_selector` y previniendo pérdidas de datos.
 
+✅ **Conexión a la Nube (Backend Supabase):** 
+   - Se eliminó SQLite y se conectó la app a un backend **PostgreSQL en Supabase**.
+   - Toda la información viaja y se almacena en la nube de forma segura.
+✅ **Sincronización Mágica (Realtime):** 
+   - Se habilitó la suscripción por WebSockets, de modo que cualquier cambio en una pantalla se refleja instantáneamente en el resto de dispositivos sin recargar.
+✅ **Recuperación de Contraseña:**
+   - Sistema de recuperación con Códigos OTP (6 dígitos) enviado directo al correo electrónico.
+
 ### Próxima Fase (Falta Desarrollar)
-⏳ **Conexión a la Nube (Backend):** La app está lista en el celular, pero falta construir el servidor (API en Node.js, PHP o Firebase) y la base de datos MySQL central.
-⏳ **Sincronización:** Conectar el `SyncService` interno para subir todos los movimientos guardados en local al servidor.
-⏳ **Notificaciones Push:** Avisar al celular del Administrador cuando un trabajador registre una salida importante en el almacén.
+⏳ **Notificaciones Push:** Avisar al celular del Administrador mediante Firebase o OneSignal cuando un trabajador registre una salida importante en el almacén.
 
 ---
 *Para ver el detalle técnico y bitácora de cambios, por favor lee `FL_act.md`. Para ver el listado estricto de requerimientos, revisa `RF.md`.*

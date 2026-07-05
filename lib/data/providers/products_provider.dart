@@ -1,139 +1,127 @@
 import 'package:flutter/foundation.dart';
-import '../../core/database/database_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/product_model.dart';
 import '../../core/services/notification_service.dart';
+import 'package:uuid/uuid.dart';
 
 class ProductsProvider with ChangeNotifier {
   List<ProductModel> _products = [];
   bool _isLoading = false;
-  final Set<int> _dismissedAlertProductIds = {};
+  final Set<String> _dismissedAlertProductIds = {};
 
   List<ProductModel> get products => _products;
   bool get isLoading => _isLoading;
-  Set<int> get dismissedAlertProductIds => _dismissedAlertProductIds;
+  Set<String> get dismissedAlertProductIds => _dismissedAlertProductIds;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final _supabase = Supabase.instance.client;
 
   Future<void> fetchProducts() async {
     _isLoading = true;
     notifyListeners();
 
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('products');
-    
-    _products = maps.map((map) => ProductModel.fromMap(map)).toList();
-    
-    // Habilitar de nuevo las alertas para los productos que ya tienen stock suficiente
-    for (final prod in _products) {
-      if (prod.stock > prod.minStock && prod.id != null) {
-        _dismissedAlertProductIds.remove(prod.id);
+    try {
+      final response = await _supabase.from('products').select().order('name');
+      _products = response.map((map) => ProductModel.fromMap(map)).toList();
+
+      for (final prod in _products) {
+        if (prod.stock > prod.minStock && prod.id != null) {
+          _dismissedAlertProductIds.remove(prod.id);
+        }
       }
+    } catch (e) {
+      print('Error fetching products: $e');
     }
-    
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addProduct(ProductModel product) async {
-    final db = await _dbHelper.database;
-    await db.insert('products', product.toMap());
-    await fetchProducts();
+    try {
+      final data = product.toMap();
+      if (data['id'] == null) data['id'] = const Uuid().v4();
+      await _supabase.from('products').insert(data);
+      await fetchProducts();
+    } catch (e) {
+      print('Error adding product: $e');
+    }
   }
 
   Future<void> updateProduct(ProductModel product) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'products',
-      product.toMap(),
-      where: 'id = ?',
-      whereArgs: [product.id],
-    );
-    await fetchProducts();
+    try {
+      final data = product.toMap();
+      data.remove('id');
+      await _supabase.from('products').update(data).eq('id', product.id!);
+      await fetchProducts();
+    } catch (e) {
+      print('Error updating product: $e');
+    }
   }
   
-  // Utilidad para actualizar stock desde un movimiento
-  Future<void> updateStock(int productId, int quantity, String type) async {
-    final db = await _dbHelper.database;
-    
-    final List<Map<String, dynamic>> productMaps = await db.query('products', where: 'id = ?', whereArgs: [productId]);
-    if (productMaps.isNotEmpty) {
-      final currentProduct = ProductModel.fromMap(productMaps.first);
-      int newStock = currentProduct.stock;
-      if (type == 'IN') {
-        newStock += quantity;
-      } else if (type == 'OUT') {
-        newStock -= quantity;
-        if (newStock < 0) newStock = 0; // Evitar stock negativo (aunque debería bloquearse en UI)
+  Future<void> updateStock(String productId, int quantity, String type) async {
+    try {
+      final response = await _supabase.from('products').select().eq('id', productId).maybeSingle();
+      if (response != null) {
+        final currentProduct = ProductModel.fromMap(response);
+        int newStock = currentProduct.stock;
+        if (type == 'IN') {
+          newStock += quantity;
+        } else if (type == 'OUT') {
+          newStock -= quantity;
+          if (newStock < 0) newStock = 0; 
+        }
+        
+        await _supabase.from('products').update({'stock': newStock}).eq('id', productId);
+        
+        if (type == 'OUT' && newStock <= currentProduct.minStock) {
+          NotificationService().showNotification(
+            id: productId.hashCode,
+            title: 'Alerta de Stock Crítico',
+            body: 'Un producto llegó al stock mínimo.\\nPresiona para ver más.',
+          );
+        }
+        
+        await fetchProducts();
       }
-      
-      await db.update(
-        'products',
-        {'stock': newStock},
-        where: 'id = ?',
-        whereArgs: [productId],
-      );
-      
-      if (type == 'OUT' && newStock <= currentProduct.minStock) {
-        NotificationService().showNotification(
-          id: productId,
-          title: 'Alerta de Stock Crítico',
-          body: 'Un producto llegó al stock mínimo.\nPresiona para ver más.',
-        );
-      }
-      
-      await fetchProducts();
+    } catch (e) {
+      print('Error updating stock: $e');
     }
   }
 
-  Future<void> toggleProductStatus(int id, bool currentStatus) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'products',
-      {'isActive': currentStatus ? 0 : 1},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await fetchProducts();
-  }
-
-  Future<bool> deleteProduct(int id) async {
-    final db = await _dbHelper.database;
-    
-    // Verificar si el producto tiene movimientos registrados
-    final List<Map<String, dynamic>> movementMaps = await db.query(
-      'movements',
-      where: 'productId = ?',
-      whereArgs: [id],
-    );
-    
-    if (movementMaps.isNotEmpty) {
-      // Si tiene movimientos, desactivarlo en lugar de borrarlo
-      await db.update(
-        'products',
-        {'isActive': 0},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+  Future<void> toggleProductStatus(String id, bool currentStatus) async {
+    try {
+      await _supabase.from('products').update({'is_active': !currentStatus}).eq('id', id);
       await fetchProducts();
-      return false; // Retornar false indicando que no se eliminó físicamente, sino que se desactivó
+    } catch (e) {
+      print('Error toggling status: $e');
     }
-    
-    // Si no tiene movimientos, borrarlo físicamente
-    await db.delete(
-      'products',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await fetchProducts();
-    return true; // Retornar true indicando eliminación física exitosa
   }
 
-  void dismissAlert(int productId) {
+  Future<bool> deleteProduct(String id) async {
+    try {
+      final response = await _supabase.from('movements').select('id').eq('product_id', id).limit(1);
+      
+      if (response.isNotEmpty) {
+        await _supabase.from('products').update({'is_active': false}).eq('id', id);
+        await fetchProducts();
+        return false; 
+      }
+      
+      await _supabase.from('products').delete().eq('id', id);
+      await fetchProducts();
+      return true;
+    } catch (e) {
+      print('Error deleting product: $e');
+      return false;
+    }
+  }
+
+  void dismissAlert(String productId) {
     _dismissedAlertProductIds.add(productId);
     notifyListeners();
   }
 
-  void dismissAllAlerts(List<int> productIds) {
+  void dismissAllAlerts(List<String> productIds) {
     _dismissedAlertProductIds.addAll(productIds);
     notifyListeners();
   }

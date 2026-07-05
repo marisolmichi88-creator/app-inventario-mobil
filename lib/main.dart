@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'core/database/database_helper.dart';
 import 'features/auth/auth_provider.dart';
 import 'core/router/app_router.dart';
 import 'package:go_router/go_router.dart';
@@ -13,18 +12,17 @@ import 'data/providers/movements_provider.dart';
 import 'data/providers/theme_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inicializar Supabase
   await Supabase.initialize(
-    url: 'https://hudjbhnyepdbhnpzdcru.supabase.co',
-    publishableKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1ZGpiaG55ZXBkYmhucHpkY3J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzQwNDgsImV4cCI6MjA5ODc1MDA0OH0.QwSiKPN1b9s5Ht0v-vxgHY8FdG4-lbF-884xocJua5o',
+    url: 'https://xzegdfhcxypnffurfvwc.supabase.co',
+    publishableKey: 'sb_publishable_WqoRr7eEbZnsGKZHctLUJQ_MyIv1B0n',
   );
 
-  // Inicializar base de datos
-  await DatabaseHelper().database;
+  // Base de datos local removida
+
 
   // Inicializar notificaciones locales
   await NotificationService().init();
@@ -74,6 +72,22 @@ class _AppWithThemeState extends State<_AppWithTheme> {
   void initState() {
     super.initState();
     _router = AppRouter.createRouter(context);
+    
+    // Iniciar suscripción en tiempo real de Supabase nativa
+    Supabase.instance.client.channel('public:all').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      callback: (payload) {
+        if (mounted) {
+          context.read<ProductsProvider>().fetchProducts();
+          context.read<CategoriesProvider>().fetchCategories();
+          context.read<UsersProvider>().fetchUsers();
+          context.read<WarehousesProvider>().fetchWarehouses();
+          context.read<ProjectsProvider>().fetchProjects();
+          context.read<MovementsProvider>().fetchMovements();
+        }
+      }
+    ).subscribe();
   }
 
   @override

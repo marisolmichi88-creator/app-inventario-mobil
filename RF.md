@@ -29,8 +29,8 @@
 
 ## Requerimientos No Funcionales
 - **RNF01:** El sistema deberá ser accesible desde dispositivos móviles y permitir futuras adaptaciones para entornos web.
-- **RNF02:** La autenticación deberá proteger el acceso al sistema.
-- **RNF03:** La información deberá almacenarse en una base de datos MySQL.
+- **RNF02:** La autenticación deberá proteger el acceso al sistema e incluir recuperación segura vía código OTP al correo.
+- **RNF03:** La información deberá almacenarse en una base de datos en la nube (Supabase / PostgreSQL) en tiempo real.
 - **RNF04:** El sistema deberá responder en menos de 3 segundos para operaciones comunes.
 - **RNF05:** El sistema deberá mantener trazabilidad completa de los movimientos de inventario.
 - **RNF06:** La interfaz deberá ser intuitiva y fácil de utilizar para personal sin conocimientos técnicos.

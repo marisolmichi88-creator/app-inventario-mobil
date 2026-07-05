@@ -3,9 +3,9 @@
 Este documento registra todo el progreso de la migración y creación del proyecto desde cero en Flutter, con un diseño moderno (Tema Claro) y funcionalidades orientadas a la experiencia del usuario (UX) corporativa.
 
 ## 🔑 Credenciales de Acceso (¡No Olvidar!)
-Para iniciar sesión en la aplicación, la base de datos local SQLite se siembra automáticamente con:
-- **Admin:** `admin@test.com` | Clave: `123`
-- *Nota:* Puedes crear nuevos trabajadores y administradores desde el panel "Gestión de Usuarios".
+Para iniciar sesión en la aplicación, utilizamos la base de datos viva en Supabase:
+- **Admin:** (Tu correo de pruebas) | Clave: (Tu clave)
+- *Nota:* Puedes recuperar la contraseña desde la app y gestionar usuarios en el panel.
 
 ## 🚀 Mejoras y Funcionalidades Recientes Implementadas
 1. **Asignación y Costos por Proyecto:** 
@@ -29,7 +29,11 @@ Para iniciar sesión en la aplicación, la base de datos local SQLite se siembra
    - **Seguridad por Roles:** El menú lateral y el Dashboard ahora se adaptan. Los administradores ven la gestión financiera y de usuarios, mientras que los trabajadores (`worker`) solo ven el escáner y el catálogo básico para prevenir fuga de información.
    - **Analítica Gráfica:** Se integró la librería `fl_chart` para mostrar un hermoso gráfico circular (PieChart) interactivo en el Dashboard que detalla la proporción de "Stock Saludable vs Stock Crítico".
    - **Búsqueda Global Nativa:** Nuevo icono de lupa en la barra superior. Implementa un `SearchDelegate` que busca coincidencias instantáneas tanto en Productos (SKU/Nombre) como en Proyectos simultáneamente.
-   - **Sistema de Copias de Seguridad (Backup):** Nueva pantalla en *Extras* que permite exportar la base de datos `inventario.db` a la memoria del teléfono y restaurarla cuando sea necesario, previniendo pérdida de datos.
+   - **Sistema de Copias de Seguridad (Backup):** Rediseñado. Ahora las copias de seguridad son automáticas y gestionadas por los servidores de Supabase en la nube.
+8. **Mega Actualización Cloud-Native (Sin SQLite):**
+   - **Backend Nube:** Toda la arquitectura local (SQLite) fue removida. La app ahora se comunica directamente con **Supabase (PostgreSQL)**.
+   - **Recuperación OTP:** Flujo completo de "Olvidé mi contraseña" implementado, enviando un código numérico de 6 dígitos al correo y restableciéndolo directamente en la app.
+   - **Limpieza Absoluta:** Se eliminaron por completo las dependencias de `sqflite` del `pubspec.yaml` y los archivos residuales locales (`database_helper.dart` y `sync_service.dart`), garantizando un código 100% puro en la nube.
 
 ## 🗂️ Estructura del Proyecto Actual
 ```text
@@ -57,15 +61,11 @@ lib/
 ```
 
 ## 🛠️ Cómo Compilar y Ejecutar la App
-Debido a que la aplicación utiliza bases de datos locales y acceso a los archivos del dispositivo, se requieren librerías nativas avanzadas (`file_selector`, `share_plus`, `sqflite`). Para asegurar una compilación exitosa:
 1. **Descargar Dependencias:** `flutter pub get`
 2. **Ejecutar en Emulador/Dispositivo (Debug):** `flutter run`
-3. **Generar APK (Producción):** Ejecuta `flutter build apk`. Esto compilará el código, limpiará recursos no utilizados (Tree-shaking) y generará el archivo instalable en `build/app/outputs/flutter-apk/app-release.apk`.
-4. **Solución de Problemas (Caché):** Si surge un error de "PluginRegistrant" tras actualizar paquetes nativos, siempre ejecuta `flutter clean` seguido de `flutter pub get` antes de volver a compilar.
-5. **Solución de Problemas (Cámara/ML Kit):** Para evitar que el compilador estricto (R8) triture la librería del escáner en los APKs, existe un archivo de reglas obligatorio ubicado en `android/app/proguard-rules.pro` que previene la ofuscación de `com.google.mlkit.**`. Este archivo está explícitamente enlazado en `build.gradle.kts` mediante `proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")`.
-6. **Siembra de Datos (Nuevas Instalaciones):** El archivo `database_helper.dart` fue actualizado en su método `_onCreate`. Si instalas la app en un dispositivo virgen (completamente nuevo o tras borrar almacenamiento), automáticamente insertará todo el catálogo de pruebas y registrará el usuario administrador por defecto para que no inicie vacío.
-7. **Corrección de Login (Teclado Móvil):** Se modificó `login_screen.dart` para aplicar automáticamente `.trim().toLowerCase()` al campo de correo electrónico. Esto soluciona el fallo silencioso donde la auto-capitalización del teclado móvil o los espacios residuales impedían el inicio de sesión, añadiendo también alertas visuales de error para una mejor UX.
+3. **Generar APK (Producción):** Ejecuta `flutter build apk`.
+4. **Solución de Problemas (Caché):** Si surge un error de compilación tras actualizar paquetes, ejecuta `flutter clean` seguido de `flutter pub get`.
+5. **Solución de Problemas (Cámara/ML Kit):** Para evitar que el compilador estricto (R8) triture la librería del escáner en los APKs, existe un archivo de reglas en `android/app/proguard-rules.pro`.
 
-## 🟡 Pendiente (Próximos Pasos - Backend Nube)
-- **Migración a MySQL/Supabase:** Configurar el backend para sincronizar SQLite con la Nube (Multiusuario en tiempo real).
+## 🟡 Pendiente (Próximos Pasos)
 - **Notificaciones Push:** Implementar Firebase Cloud Messaging para alertas en vivo.

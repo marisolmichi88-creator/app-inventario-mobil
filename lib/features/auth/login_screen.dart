@@ -147,12 +147,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _emailController.text.trim().toLowerCase(),
                                   _passwordController.text.trim(),
                                 );
+                                if (!mounted) return;
                                 if (!success) {
                                   setState(() {
-                                    _errorMessage = 'Contraseña incorrecta';
+                                    _errorMessage = 'Credenciales incorrectas';
                                   });
                                 }
                               } catch (e) {
+                                if (!mounted) return;
                                 setState(() {
                                   _errorMessage = e.toString().replaceAll('Exception: ', '');
                                 });

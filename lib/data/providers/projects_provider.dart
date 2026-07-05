@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../core/database/database_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/project_model.dart';
+import 'package:uuid/uuid.dart';
 
 class ProjectsProvider with ChangeNotifier {
   List<ProjectModel> _projects = [];
@@ -9,45 +10,51 @@ class ProjectsProvider with ChangeNotifier {
   List<ProjectModel> get projects => _projects;
   bool get isLoading => _isLoading;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final _supabase = Supabase.instance.client;
 
   Future<void> fetchProjects() async {
     _isLoading = true;
     notifyListeners();
 
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('projects');
-    
-    _projects = maps.map((map) => ProjectModel.fromMap(map)).toList();
-    
+    try {
+      final response = await _supabase.from('projects').select().order('name');
+      _projects = response.map((map) => ProjectModel.fromMap(map)).toList();
+    } catch (e) {
+      print('Error fetching projects: $e');
+    }
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addProject(ProjectModel project) async {
-    final db = await _dbHelper.database;
-    await db.insert('projects', project.toMap());
-    await fetchProjects();
+    try {
+      final data = project.toMap();
+      if (data['id'] == null) data['id'] = const Uuid().v4();
+      await _supabase.from('projects').insert(data);
+      await fetchProjects();
+    } catch (e) {
+      print('Error adding project: $e');
+    }
   }
 
   Future<void> updateProject(ProjectModel project) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'projects',
-      project.toMap(),
-      where: 'id = ?',
-      whereArgs: [project.id],
-    );
-    await fetchProjects();
+    try {
+      final data = project.toMap();
+      data.remove('id');
+      await _supabase.from('projects').update(data).eq('id', project.id!);
+      await fetchProjects();
+    } catch (e) {
+      print('Error updating project: $e');
+    }
   }
 
-  Future<void> deleteProject(int id) async {
-    final db = await _dbHelper.database;
-    await db.delete(
-      'projects',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await fetchProjects();
+  Future<void> deleteProject(String id) async {
+    try {
+      await _supabase.from('projects').delete().eq('id', id);
+      await fetchProjects();
+    } catch (e) {
+      print('Error deleting project: $e');
+    }
   }
 }

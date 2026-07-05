@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../core/database/database_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
+import 'package:uuid/uuid.dart';
 
 class UsersProvider with ChangeNotifier {
   List<UserModel> _users = [];
@@ -9,46 +10,53 @@ class UsersProvider with ChangeNotifier {
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final _supabase = Supabase.instance.client;
 
   Future<void> fetchUsers() async {
     _isLoading = true;
     notifyListeners();
 
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('users');
-    
-    _users = maps.map((map) => UserModel.fromMap(map)).toList();
-    
+    try {
+      final response = await _supabase.from('user_profiles').select().order('name');
+      _users = response.map((map) => UserModel.fromMap(map)).toList();
+    } catch (e) {
+      print('Error fetching users: $e');
+    }
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addUser(UserModel user) async {
-    final db = await _dbHelper.database;
-    await db.insert('users', user.toMap());
-    await fetchUsers();
+    // Para usuarios no se inserta directamente en user_profiles,
+    // se delega a Supabase Auth en general, pero si quieren forzarlo:
+    try {
+      final data = user.toMap();
+      if (data['id'] == null) data['id'] = const Uuid().v4();
+      await _supabase.from('user_profiles').insert(data);
+      await fetchUsers();
+    } catch (e) {
+      print('Error adding user: $e');
+    }
   }
 
   Future<void> updateUser(UserModel user) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'users',
-      user.toMap(),
-      where: 'id = ?',
-      whereArgs: [user.id],
-    );
-    await fetchUsers();
+    try {
+      final data = user.toMap();
+      data.remove('id');
+      await _supabase.from('user_profiles').update(data).eq('id', user.id!);
+      await fetchUsers();
+    } catch (e) {
+      print('Error updating user: $e');
+    }
   }
 
-  Future<void> toggleUserStatus(int id, bool currentStatus) async {
-    final db = await _dbHelper.database;
-    await db.update(
-      'users',
-      {'isActive': currentStatus ? 0 : 1},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await fetchUsers();
+  Future<void> toggleUserStatus(String id, bool currentStatus) async {
+    try {
+      await _supabase.from('user_profiles').update({'is_active': !currentStatus}).eq('id', id);
+      await fetchUsers();
+    } catch (e) {
+      print('Error toggling user status: $e');
+    }
   }
 }

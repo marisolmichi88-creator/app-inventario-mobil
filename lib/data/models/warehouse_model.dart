@@ -1,5 +1,5 @@
 class WarehouseModel {
-  final int? id;
+  final String? id;
   final String name;
   final String? location;
   final bool isActive;
@@ -16,16 +16,17 @@ class WarehouseModel {
       id: map['id'],
       name: map['name'],
       location: map['location'],
-      isActive: map['isActive'] == 1,
+      isActive: map['is_active'] ?? true,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'name': name,
       'location': location,
-      'isActive': isActive ? 1 : 0,
+      'is_active': isActive,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 }

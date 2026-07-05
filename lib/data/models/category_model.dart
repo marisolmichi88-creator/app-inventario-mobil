@@ -1,5 +1,5 @@
 class CategoryModel {
-  final int? id;
+  final String? id;
   final String name;
   final String? description;
   final bool isActive;
@@ -16,16 +16,17 @@ class CategoryModel {
       id: map['id'],
       name: map['name'],
       description: map['description'],
-      isActive: map['isActive'] == 1,
+      isActive: map['is_active'] ?? true,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'name': name,
       'description': description,
-      'isActive': isActive ? 1 : 0,
+      'is_active': isActive,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 }

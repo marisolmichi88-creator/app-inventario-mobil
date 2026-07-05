@@ -19,9 +19,9 @@ class MovementFormDialog extends StatefulWidget {
 
 class _MovementFormDialogState extends State<MovementFormDialog> {
   String? type; 
-  int? selectedProductId;
-  int? selectedWarehouseId;
-  int? selectedProjectId;
+  String? selectedProductId;
+  String? selectedWarehouseId;
+  String? selectedProjectId;
   
   final quantityController = TextEditingController();
   final notesController = TextEditingController();
@@ -174,7 +174,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildDropdownField<int>(
+                    _buildDropdownField<String>(
                       label: 'Producto',
                       icon: Icons.inventory_2_outlined,
                       isDark: isDark,
@@ -190,7 +190,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildDropdownField<int>(
+                    _buildDropdownField<String>(
                       label: 'Almacén',
                       icon: Icons.storefront_outlined,
                       isDark: isDark,
@@ -207,7 +207,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                     ),
                     const SizedBox(height: 16),
                     if (type == 'OUT' && projects.isNotEmpty) ...[
-                      _buildDropdownField<int>(
+                      _buildDropdownField<String>(
                         label: 'Proyecto (Obligatorio)',
                         icon: Icons.assignment_outlined,
                         isDark: isDark,

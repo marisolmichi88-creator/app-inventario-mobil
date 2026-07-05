@@ -1,9 +1,9 @@
 class MovementModel {
-  final int? id;
-  final int productId;
-  final int warehouseId;
-  final int? projectId;
-  final int userId;
+  final String? id;
+  final String productId;
+  final String warehouseId;
+  final String? projectId;
+  final String userId;
   final String type; // 'IN' or 'OUT'
   final int quantity;
   final String date;
@@ -26,30 +26,30 @@ class MovementModel {
   factory MovementModel.fromMap(Map<String, dynamic> map) {
     return MovementModel(
       id: map['id'],
-      productId: map['productId'],
-      warehouseId: map['warehouseId'],
-      projectId: map['projectId'],
-      userId: map['userId'],
+      productId: map['product_id'],
+      warehouseId: map['warehouse_id'],
+      projectId: map['project_id'],
+      userId: map['user_id'],
       type: map['type'],
       quantity: map['quantity'],
-      date: map['date'],
+      date: map['date'] ?? map['created_at'],
       notes: map['notes'],
-      isSynced: map['is_synced'] == 1,
+      isSynced: true, // No longer used
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'productId': productId,
-      'warehouseId': warehouseId,
-      'projectId': projectId,
-      'userId': userId,
+    final map = <String, dynamic>{
+      'product_id': productId,
+      'warehouse_id': warehouseId,
+      'project_id': projectId,
+      'user_id': userId,
       'type': type,
       'quantity': quantity,
       'date': date,
       'notes': notes,
-      'is_synced': isSynced ? 1 : 0,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 }

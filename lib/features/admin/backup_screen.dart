@@ -1,70 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:file_selector/file_selector.dart';
-import 'dart:io';
-import '../../core/database/database_helper.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/admin_ui.dart';
-import '../../core/widgets/custom_snackbar.dart';
 
 class BackupScreen extends StatelessWidget {
   const BackupScreen({super.key});
-
-  Future<void> _exportDatabase(BuildContext context) async {
-    try {
-      final dbPath = await DatabaseHelper().getDatabasePath();
-      final file = File(dbPath);
-      if (await file.exists()) {
-        await Share.shareXFiles([XFile(file.path)], text: 'Backup Inventario BD');
-      } else {
-        throw Exception('El archivo de base de datos no existe.');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        CustomSnackBar.showError(context, 'Exportación fallida');
-      }
-    }
-  }
-
-  Future<void> _importDatabase(BuildContext context) async {
-    try {
-      const XTypeGroup dbGroup = XTypeGroup(
-        label: 'Database',
-        extensions: <String>['db', 'sqlite'],
-      );
-      final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[dbGroup]);
-
-      if (file != null) {
-        File sourceFile = File(file.path);
-        if (sourceFile.path.endsWith('.db')) {
-          final targetPath = await DatabaseHelper().getDatabasePath();
-          await sourceFile.copy(targetPath);
-          if (context.mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: const Text('¡Restauración Exitosa!'),
-                content: const Text('La base de datos se ha restaurado. Por favor, reinicia la aplicación para aplicar los cambios.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => exit(0), // Cierra la app para obligar al reinicio
-                    child: const Text('Cerrar App'),
-                  ),
-                ],
-              ),
-            );
-          }
-        } else {
-          throw Exception('Por favor selecciona un archivo .db válido.');
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        CustomSnackBar.showError(context, 'Importación fallida');
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,20 +32,20 @@ class BackupScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? const Color(0xFF1E3A8A).withValues(alpha: 0.25)
-                          : const Color(0xFFEFF6FF),
+                          ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                          : const Color(0xFFD1FAE5),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.security_rounded,
+                      Icons.cloud_done_rounded,
                       size: 56,
-                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                      color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Protege tu inventario',
+                  'Datos Seguros en la Nube',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -116,7 +55,7 @@ class BackupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Crea copias de seguridad de la base de datos local y guárdalas en un lugar seguro.',
+                  'Tu inventario está respaldado automáticamente y en tiempo real en los servidores seguros de Supabase.\\n\\nYa no es necesario realizar copias de seguridad manuales.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -126,26 +65,13 @@ class BackupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
-                  onPressed: () => _exportDatabase(context),
-                  icon: const Icon(Icons.upload_file_rounded),
-                  label: const Text('Exportar copia de seguridad'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('Volver'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.all(16),
                     backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
                     foregroundColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => _importDatabase(context),
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text('Restaurar desde archivo'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                    foregroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-                    side: BorderSide(
-                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-                    ),
                   ),
                 ),
               ],
