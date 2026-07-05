@@ -153,7 +153,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _codeSent 
-                      ? 'Revisa tu correo y escribe el código de 6 dígitos para crear tu nueva contraseña.' 
+                      ? 'Revisa tu correo y escribe el código de 6 dígitos para crear tu nueva contraseña.\\n(En caso de no visualizar el correo, por favor revisar en la bandeja de spam)' 
                       : 'Ingresa tu correo registrado para recibir un código de recuperación',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
