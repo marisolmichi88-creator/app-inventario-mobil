@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
@@ -28,15 +30,42 @@ class UsersProvider with ChangeNotifier {
   }
 
   Future<void> addUser(UserModel user) async {
-    // Para usuarios no se inserta directamente en user_profiles,
-    // se delega a Supabase Auth en general, pero si quieren forzarlo:
     try {
-      final data = user.toMap();
-      if (data['id'] == null) data['id'] = const Uuid().v4();
-      await _supabase.from('user_profiles').insert(data);
-      await fetchUsers();
+      final url = Uri.parse('https://xzegdfhcxypnffurfvwc.supabase.co/auth/v1/signup');
+      final response = await http.post(
+        url,
+        headers: {
+          'apikey': 'sb_publishable_WqoRr7eEbZnsGKZHctLUJQ_MyIv1B0n',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': user.email,
+          'password': user.password,
+          'data': {
+            'name': user.name,
+            'role': user.role,
+          }
+        }),
+      );
+
+      final authResponse = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && authResponse['id'] != null) {
+        final data = user.toMap();
+        data.remove('id'); // Remove id so we don't update the primary key
+        data['auth_user_id'] = authResponse['id'];
+        
+        // El trigger de Supabase crea automáticamente el perfil como 'admin'.
+        // Así que aquí lo actualizamos con los datos reales (nombre, rol correcto, etc).
+        await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
+        
+        await fetchUsers();
+      } else {
+        throw Exception(authResponse['msg'] ?? 'No se pudo registrar al usuario en Supabase.');
+      }
     } catch (e) {
       print('Error adding user: $e');
+      rethrow;
     }
   }
 
@@ -48,6 +77,17 @@ class UsersProvider with ChangeNotifier {
       await fetchUsers();
     } catch (e) {
       print('Error updating user: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteUser(String id) async {
+    try {
+      await _supabase.from('user_profiles').delete().eq('id', id);
+      await fetchUsers();
+    } catch (e) {
+      print('Error deleting user: $e');
+      rethrow;
     }
   }
 

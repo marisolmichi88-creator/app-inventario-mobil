@@ -5,6 +5,7 @@ import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/custom_snackbar.dart';
+import '../../features/auth/auth_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -90,6 +91,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final currentUser = context.read<AuthProvider>().currentUser;
+        final isAdmin = currentUser?.role == 'admin';
         String selectedCurrency = product?.currency ?? 'PEN';
         
         return StatefulBuilder(
@@ -136,7 +139,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                       Row(
                         children: [
-                          if (isEditing)
+                          if (isEditing && isAdmin)
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                               onPressed: () => _confirmDeleteProduct(context, product),
@@ -156,6 +159,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     hint: 'Ej. PROD-0001',
                     icon: Icons.qr_code_2,
                     isDark: isDark,
+                    enabled: isAdmin,
                   ),
                   const SizedBox(height: 16),
                   _buildFormField(
@@ -164,6 +168,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     hint: 'Ej. SN-123456',
                     icon: Icons.tag,
                     isDark: isDark,
+                    enabled: isAdmin,
                   ),
                   const SizedBox(height: 16),
                   _buildFormField(
@@ -172,6 +177,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     hint: 'Ej. Inversor Solar 3000W',
                     icon: Icons.local_offer_outlined,
                     isDark: isDark,
+                    enabled: isAdmin,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -184,6 +190,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           icon: Icons.inventory_2_outlined,
                           isNumber: true,
                           isDark: isDark,
+                          enabled: isAdmin,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -195,6 +202,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           icon: Icons.warning_amber_rounded,
                           isNumber: true,
                           isDark: isDark,
+                          enabled: isAdmin,
                         ),
                       ),
                     ],
@@ -209,6 +217,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           hint: 'Ej. UND',
                           icon: Icons.straighten,
                           isDark: isDark,
+                          enabled: isAdmin,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -234,11 +243,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             DropdownMenuItem(value: 'PEN', child: Text('Soles')),
                             DropdownMenuItem(value: 'USD', child: Text('Dólares')),
                           ],
-                          onChanged: (val) {
+                          onChanged: isAdmin ? (val) {
                             if (val != null) {
                               setState(() => selectedCurrency = val);
                             }
-                          },
+                          } : null,
                         ),
                       ),
                     ],
@@ -251,6 +260,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     icon: Icons.payments_outlined,
                     isNumber: true,
                     isDark: isDark,
+                    enabled: isAdmin,
                   ),
                   const SizedBox(height: 16),
                   Divider(color: Colors.grey.withValues(alpha: 0.2)),
@@ -265,7 +275,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           child: Text(
-                            'Cancelar',
+                            isAdmin ? 'Cancelar' : 'Cerrar',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -274,43 +284,45 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (formKey.currentState!.validate()) {
-                              final newProduct = ProductModel(
-                                id: product?.id,
-                                code: codeController.text.trim(),
-                                serialNumber: serialNumberController.text.trim().isEmpty ? null : serialNumberController.text.trim(),
-                                name: nameController.text.trim(),
-                                stock: int.tryParse(stockController.text) ?? 0,
-                                minStock: int.tryParse(minStockController.text) ?? 0,
-                                unit: unitController.text.trim(),
-                                price: double.tryParse(priceController.text) ?? 0.0,
-                                currency: selectedCurrency,
-                                isActive: product?.isActive ?? true,
-                              );
-                              
-                              if (isEditing) {
-                                context.read<ProductsProvider>().updateProduct(newProduct);
-                              } else {
-                                context.read<ProductsProvider>().addProduct(newProduct);
+                      if (isAdmin) ...[
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (formKey.currentState!.validate()) {
+                                final newProduct = ProductModel(
+                                  id: product?.id,
+                                  code: codeController.text.trim(),
+                                  serialNumber: serialNumberController.text.trim().isEmpty ? null : serialNumberController.text.trim(),
+                                  name: nameController.text.trim(),
+                                  stock: int.tryParse(stockController.text) ?? 0,
+                                  minStock: int.tryParse(minStockController.text) ?? 0,
+                                  unit: unitController.text.trim(),
+                                  price: double.tryParse(priceController.text) ?? 0.0,
+                                  currency: selectedCurrency,
+                                  isActive: product?.isActive ?? true,
+                                );
+                                
+                                if (isEditing) {
+                                  context.read<ProductsProvider>().updateProduct(newProduct);
+                                } else {
+                                  context.read<ProductsProvider>().addProduct(newProduct);
+                                }
+                                Navigator.pop(context);
                               }
-                              Navigator.pop(context);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-                            foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                              foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.save_rounded, size: 20),
+                            label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           ),
-                          icon: const Icon(Icons.save_rounded, size: 20),
-                          label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -410,14 +422,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
           )
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showProductForm(),
-        backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-        foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        elevation: 1,
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Producto', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
+      floatingActionButton: context.watch<AuthProvider>().currentUser?.role == 'admin' 
+        ? FloatingActionButton.extended(
+            onPressed: () => _showProductForm(),
+            backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+            foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+            elevation: 1,
+            icon: const Icon(Icons.add),
+            label: const Text('Nuevo Producto', style: TextStyle(fontWeight: FontWeight.bold)),
+          )
+        : null,
       body: Consumer<ProductsProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {

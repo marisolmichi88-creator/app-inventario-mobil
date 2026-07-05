@@ -4,7 +4,7 @@ class UserModel {
   final String name;
   final String email;
   final String password;
-  final String role; // 'admin' o 'worker'
+  final String role; // 'admin' o 'operador'
   final bool isActive;
 
   UserModel({
@@ -21,11 +21,11 @@ class UserModel {
     return UserModel(
       id: map['id'],
       authUserId: map['auth_user_id'],
-      name: map['name'],
-      email: map['email'],
-      password: map['password'],
-      role: map['role'],
-      isActive: map['isActive'] == 1,
+      name: map['name'] ?? '',
+      email: map['email'] ?? '',
+      password: map['password'] ?? '',
+      role: map['role'] ?? 'operador',
+      isActive: map['is_active'] == 1 || map['is_active'] == true,
     );
   }
 
@@ -35,9 +35,8 @@ class UserModel {
       'auth_user_id': authUserId,
       'name': name,
       'email': email,
-      'password': password,
       'role': role,
-      'isActive': isActive ? 1 : 0,
+      'is_active': isActive,
     };
   }
 }

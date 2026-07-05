@@ -150,14 +150,16 @@ class _UsersScreenState extends State<UsersScreen> {
                         isDark: isDark,
                       ),
                       const SizedBox(height: 16),
-                      _buildFormField(
-                        controller: passwordController,
-                        label: 'Contraseña',
-                        hint: 'Mínimo 6 caracteres',
-                        icon: Icons.lock_outline_rounded,
-                        isDark: isDark,
-                      ),
-                      const SizedBox(height: 16),
+                      if (!isEditing) ...[
+                        _buildFormField(
+                          controller: passwordController,
+                          label: 'Contraseña',
+                          hint: 'Mínimo 6 caracteres',
+                          icon: Icons.lock_outline_rounded,
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       DropdownButtonFormField<String>(
                         initialValue: selectedRole,
                         hint: const Text('Seleccionar rol'),
@@ -194,7 +196,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         ),
                         items: const [
                           DropdownMenuItem(value: 'admin', child: Text('Administrador')),
-                          DropdownMenuItem(value: 'worker', child: Text('Trabajador')),
+                          DropdownMenuItem(value: 'operador', child: Text('Trabajador')),
                         ],
                         onChanged: (val) {
                           setState(() {
@@ -226,26 +228,38 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                if (formKey.currentState!.validate()) {
-                                  final newUser = UserModel(
-                                    id: user?.id,
-                                    name: nameController.text.trim(),
-                                    email: emailController.text.trim(),
-                                    password: passwordController.text.trim(),
-                                    role: selectedRole!,
-                                    isActive: user?.isActive ?? true,
-                                  );
-                                  
-                                  if (isEditing) {
-                                    context.read<UsersProvider>().updateUser(newUser);
-                                  } else {
-                                    context.read<UsersProvider>().addUser(newUser);
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  if (formKey.currentState!.validate()) {
+                                    try {
+                                      final newUser = UserModel(
+                                        id: user?.id,
+                                        authUserId: user?.authUserId,
+                                        name: nameController.text.trim(),
+                                        email: emailController.text.trim(),
+                                        password: passwordController.text.trim(),
+                                        role: selectedRole!,
+                                        isActive: user?.isActive ?? true,
+                                      );
+                                      
+                                      if (isEditing) {
+                                        await context.read<UsersProvider>().updateUser(newUser);
+                                      } else {
+                                        await context.read<UsersProvider>().addUser(newUser);
+                                      }
+                                      if (context.mounted) Navigator.pop(context);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
                                   }
-                                  Navigator.pop(context);
-                                }
-                              },
+                                },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
                                 foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -259,6 +273,46 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                         ],
                       ),
+                      if (isEditing) ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Eliminar Usuario'),
+                                  content: const Text('¿Estás seguro de que deseas eliminar este usuario?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              );
+                              
+                              if (confirm == true) {
+                                try {
+                                  await context.read<UsersProvider>().deleteUser(user!.id!);
+                                  if (context.mounted) Navigator.pop(context);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                                  }
+                                }
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Eliminar Usuario', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   ),
