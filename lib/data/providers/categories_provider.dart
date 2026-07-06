@@ -28,24 +28,38 @@ class CategoriesProvider with ChangeNotifier {
   }
 
   Future<void> addCategory(CategoryModel category) async {
+    final data = category.toMap();
+    if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
-      final data = category.toMap();
-      if (data['id'] == null) data['id'] = const Uuid().v4();
       await _supabase.from('categories').insert(data);
       await fetchCategories();
     } catch (e) {
-      debugPrint('Error adding category: $e');
+      debugPrint('Error adding category, retrying without is_active: $e');
+      data.remove('is_active');
+      try {
+        await _supabase.from('categories').insert(data);
+        await fetchCategories();
+      } catch (e2) {
+        debugPrint('Error adding category: $e2');
+      }
     }
   }
 
   Future<void> updateCategory(CategoryModel category) async {
+    final data = category.toMap();
+    data.remove('id');
     try {
-      final data = category.toMap();
-      data.remove('id');
       await _supabase.from('categories').update(data).eq('id', category.id!);
       await fetchCategories();
     } catch (e) {
-      debugPrint('Error updating category: $e');
+      debugPrint('Error updating category, retrying without is_active: $e');
+      data.remove('is_active');
+      try {
+        await _supabase.from('categories').update(data).eq('id', category.id!);
+        await fetchCategories();
+      } catch (e2) {
+        debugPrint('Error updating category: $e2');
+      }
     }
   }
 

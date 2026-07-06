@@ -21,6 +21,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   
   bool _isLoading = false;
   bool _codeSent = false;
+  bool _codeConfirmed = false;
   bool _obscurePassword = true;
 
   @override
@@ -29,6 +30,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     _tokenController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  String _translateError(String errorMessage) {
+    final lower = errorMessage.toLowerCase();
+    if (lower.contains('same_password') || lower.contains('different from the old')) {
+      return 'La nueva contraseña debe ser diferente de tu contraseña actual.';
+    }
+    if (lower.contains('otp_expired') || lower.contains('expired') || lower.contains('token has expired')) {
+      return 'El código ha expirado o ya fue utilizado. Por favor, solicita uno nuevo.';
+    }
+    if (lower.contains('invalid') || lower.contains('invalid_grant') || lower.contains('bad_code') || lower.contains('code is invalid')) {
+      return 'El código ingresado es incorrecto o inválido.';
+    }
+    if (lower.contains('rate limit') || lower.contains('too many requests') || lower.contains('over_limit')) {
+      return 'Demasiados intentos. Por favor, espera unos minutos antes de intentar de nuevo.';
+    }
+    if (lower.contains('network') || lower.contains('failed host lookup')) {
+      return 'Error de conexión a internet. Revisa tu red.';
+    }
+    if (lower.contains('user not found') || lower.contains('user_not_found')) {
+      return 'No hay ningún usuario registrado con este correo.';
+    }
+    return errorMessage;
   }
 
   Future<void> _handleSendCode() async {
@@ -52,13 +76,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final rawMsg = e.toString().replaceAll('Exception: ', '');
         CustomSnackBar.showError(
           context,
-          'Error al enviar el código: ${e.toString().replaceAll('Exception: ', '')}',
+          'Error al enviar el código: ${_translateError(rawMsg)}',
         );
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  // Paso 2 -> 3: valida que el código esté escrito y pasa a la pantalla de
+  // nueva contraseña. El restablecimiento real se hace en el paso 3.
+  void _handleConfirmCode() {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _codeConfirmed = true);
   }
 
   Future<void> _handleVerifyAndReset() async {
@@ -83,9 +115,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final rawMsg = e.toString().replaceAll('Exception: ', '');
         CustomSnackBar.showError(
           context,
-          'Error al restablecer la contraseña: ${e.toString().replaceAll('Exception: ', '')}',
+          'Error al restablecer la contraseña: ${_translateError(rawMsg)}',
         );
       }
     } finally {
@@ -142,7 +175,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const SizedBox(height: 24),
                   
                   Text(
-                    _codeSent ? 'Ingresa tu Código' : 'Restablecer Contraseña',
+                    !_codeSent
+                        ? 'Restablecer Contraseña'
+                        : (_codeConfirmed ? 'Nueva Contraseña' : 'Ingresa tu Código'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 24,
@@ -152,9 +187,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _codeSent 
-                      ? 'Revisa tu correo y escribe el código de 6 dígitos para crear tu nueva contraseña.\\n(En caso de no visualizar el correo, por favor revisar en la bandeja de spam)' 
-                      : 'Ingresa tu correo registrado para recibir un código de recuperación',
+                    !_codeSent
+                        ? 'Ingresa tu correo registrado para recibir un código de recuperación'
+                        : (_codeConfirmed
+                            ? 'Crea tu nueva contraseña para acceder a tu cuenta'
+                            : 'Revisa tu correo y escribe el código de 6 dígitos.\\n(Si no lo ves, revisa la bandeja de spam)'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                   ),
@@ -202,7 +239,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               elevation: 0,
                             ),
                           ),
-                  ] else ...[
+                  ] else if (!_codeConfirmed) ...[
+                    // PASO 2: solo el código
                     TextFormField(
                       controller: _tokenController,
                       decoration: const InputDecoration(
@@ -220,7 +258,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _handleConfirmCode,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const Text(
+                        'Continuar',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ] else ...[
+                    // PASO 3: solo la nueva contraseña (aquí recién se restablece)
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -259,7 +316,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             onPressed: _handleVerifyAndReset,
                             icon: const Icon(Icons.check_circle_outline),
                             label: const Text(
-                              'Actualizar Contraseña',
+                              'Restablecer Contraseña',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             style: ElevatedButton.styleFrom(
@@ -272,6 +329,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               elevation: 0,
                             ),
                           ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => setState(() => _codeConfirmed = false),
+                      child: Text(
+                        'Volver a ingresar el código',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),

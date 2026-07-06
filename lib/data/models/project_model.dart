@@ -6,6 +6,7 @@ class ProjectModel {
   final String? startDate;
   final String? endDate;
   final String status;
+  final double budget;
 
   ProjectModel({
     this.id,
@@ -15,6 +16,7 @@ class ProjectModel {
     this.startDate,
     this.endDate,
     this.status = 'active', // active, completed, cancelled
+    this.budget = 0.0,
   });
 
   factory ProjectModel.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,7 @@ class ProjectModel {
       startDate: map['start_date'],
       endDate: map['end_date'],
       status: map['status'] ?? 'active',
+      budget: (map['budget'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -37,6 +40,7 @@ class ProjectModel {
       'start_date': startDate,
       'end_date': endDate,
       'status': status,
+      'budget': budget,
     };
     if (id != null) map['id'] = id;
     return map;

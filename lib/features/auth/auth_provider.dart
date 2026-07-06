@@ -115,7 +115,19 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> sendPasswordResetCode(String email) async {
-    await Supabase.instance.client.auth.resetPasswordForEmail(email);
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+    } on AuthException catch (e) {
+      if (e.message.contains('User not found') || e.code == 'user_not_found') {
+        throw Exception('No hay ningún usuario registrado con este correo.');
+      } else if (e.message.contains('Too many requests') || e.code == 'over_limit' || e.message.contains('rate limit')) {
+        throw Exception('Demasiadas solicitudes de recuperación. Espera unos minutos.');
+      } else {
+        throw Exception(e.message);
+      }
+    } catch (e) {
+      throw Exception('Error al enviar el código de recuperación.');
+    }
   }
 
   Future<void> verifyCodeAndResetPassword(
@@ -123,18 +135,34 @@ class AuthProvider with ChangeNotifier {
     String token,
     String newPassword,
   ) async {
-    final response = await Supabase.instance.client.auth.verifyOTP(
-      type: OtpType.recovery,
-      token: token,
-      email: email,
-    );
-
-    if (response.session != null) {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: newPassword),
+    try {
+      final response = await Supabase.instance.client.auth.verifyOTP(
+        type: OtpType.recovery,
+        token: token,
+        email: email,
       );
-    } else {
-      throw Exception('Código inválido o expirado.');
+
+      if (response.session != null) {
+        await Supabase.instance.client.auth.updateUser(
+          UserAttributes(password: newPassword),
+        );
+      } else {
+        throw Exception('Código inválido o expirado.');
+      }
+    } on AuthException catch (e) {
+      if (e.message.contains('different') || e.code == 'same_password') {
+        throw Exception('La nueva contraseña debe ser diferente de tu contraseña actual.');
+      } else if (e.message.contains('expired') || e.code == 'otp_expired') {
+        throw Exception('El código ha expirado. Solicita uno nuevo.');
+      } else if (e.message.contains('invalid') || e.code == 'invalid_grant' || e.code == 'bad_code') {
+        throw Exception('El código de verificación es incorrecto.');
+      } else if (e.message.contains('Too many requests') || e.code == 'over_limit' || e.message.contains('rate limit')) {
+        throw Exception('Demasiados intentos. Por favor, espera unos minutos antes de intentarlo de nuevo.');
+      } else {
+        throw Exception(e.message);
+      }
+    } catch (e) {
+      throw Exception('Ocurrió un error inesperado al restablecer la contraseña.');
     }
   }
 }

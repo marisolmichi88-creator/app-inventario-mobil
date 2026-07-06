@@ -33,10 +33,11 @@ class ProjectsProvider with ChangeNotifier {
     try {
       await _supabase.from('projects').insert(data);
     } catch (e) {
-      // Si la columna 'client' aún no existe en la BD, reintenta sin ella
+      // Si la columna 'client' o 'budget' aún no existe en la BD, reintenta sin ellas
       // para no romper la creación del proyecto.
-      debugPrint('Insert proyecto: reintentando sin client. Detalle: $e');
+      debugPrint('Insert proyecto: reintentando sin budget/client. Detalle: $e');
       data.remove('client');
+      data.remove('budget');
       try {
         await _supabase.from('projects').insert(data);
       } catch (e2) {
@@ -52,8 +53,9 @@ class ProjectsProvider with ChangeNotifier {
     try {
       await _supabase.from('projects').update(data).eq('id', project.id!);
     } catch (e) {
-      debugPrint('Update proyecto: reintentando sin client. Detalle: $e');
+      debugPrint('Update proyecto: reintentando sin budget/client. Detalle: $e');
       data.remove('client');
+      data.remove('budget');
       try {
         await _supabase.from('projects').update(data).eq('id', project.id!);
       } catch (e2) {

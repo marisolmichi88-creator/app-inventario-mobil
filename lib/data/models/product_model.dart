@@ -4,6 +4,7 @@ class ProductModel {
   final String? serialNumber;
   final String name;
   final String? categoryId;
+  final String? warehouseId;
   final int stock;
   final int minStock;
   final String? unit;
@@ -17,6 +18,7 @@ class ProductModel {
     this.serialNumber,
     required this.name,
     this.categoryId,
+    this.warehouseId,
     this.stock = 0,
     this.minStock = 0,
     this.unit,
@@ -32,6 +34,7 @@ class ProductModel {
       serialNumber: map['serial_number'],
       name: map['name'],
       categoryId: map['category_id'],
+      warehouseId: map['warehouse_id'],
       stock: map['stock'] ?? 0,
       minStock: map['min_stock'] ?? 0,
       unit: map['unit'],
@@ -47,6 +50,7 @@ class ProductModel {
       'serial_number': serialNumber,
       'name': name,
       'category_id': categoryId,
+      'warehouse_id': warehouseId,
       'stock': stock,
       'min_stock': minStock,
       'unit': unit,

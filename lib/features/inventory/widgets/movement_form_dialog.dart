@@ -10,19 +10,28 @@ import '../../../core/widgets/custom_snackbar.dart';
 
 class MovementFormDialog extends StatefulWidget {
   final String? prefilledCode;
-  
-  const MovementFormDialog({super.key, this.prefilledCode});
+  final String? prefilledProjectId;
+  final String? prefilledType;
+
+  const MovementFormDialog({
+    super.key,
+    this.prefilledCode,
+    this.prefilledProjectId,
+    this.prefilledType,
+  });
 
   @override
   State<MovementFormDialog> createState() => _MovementFormDialogState();
 }
 
 class _MovementFormDialogState extends State<MovementFormDialog> {
-  String? type; 
+  String? type;
   String? selectedProductId;
   String? selectedWarehouseId;
   String? selectedProjectId;
-  
+  String? selectedUserId;
+  String? stockObservation;
+
   final quantityController = TextEditingController();
   final notesController = TextEditingController();
   final formKey = GlobalKey<FormState>();
@@ -33,7 +42,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
     super.initState();
     _initializeData();
   }
-  
+
   void _initializeData() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -46,12 +55,16 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
       await projectsProvider.fetchProjects();
 
       if (mounted) {
-        final products = productsProvider.products.where((p) => p.isActive).toList();
-        
+        final products = productsProvider.products
+            .where((p) => p.isActive)
+            .toList();
+
         if (products.isNotEmpty) {
           if (widget.prefilledCode != null) {
             try {
-              selectedProductId = products.firstWhere((p) => p.code == widget.prefilledCode).id;
+              selectedProductId = products
+                  .firstWhere((p) => p.code == widget.prefilledCode)
+                  .id;
             } catch (_) {
               selectedProductId = null;
             }
@@ -59,9 +72,11 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
             selectedProductId = null;
           }
         }
-        
+
         selectedWarehouseId = null;
-        selectedProjectId = null;
+        selectedProjectId = widget.prefilledProjectId;
+        type = widget.prefilledType;
+        selectedUserId = context.read<AuthProvider>().currentUser?.id;
 
         setState(() {
           _isLoading = false;
@@ -80,7 +95,6 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
   }
 
   Widget _buildContent(BuildContext context, bool isDark) {
-
     if (_isLoading) {
       return Container(
         height: 200,
@@ -92,9 +106,21 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
       );
     }
 
-    final products = context.watch<ProductsProvider>().products.where((p) => p.isActive).toList();
-    final warehouses = context.watch<WarehousesProvider>().warehouses.where((w) => w.isActive).toList();
-    final projects = context.watch<ProjectsProvider>().projects.where((p) => p.status == 'active').toList();
+    final products = context
+        .watch<ProductsProvider>()
+        .products
+        .where((p) => p.isActive)
+        .toList();
+    final warehouses = context
+        .watch<WarehousesProvider>()
+        .warehouses
+        .where((w) => w.isActive)
+        .toList();
+    final projects = context
+        .watch<ProjectsProvider>()
+        .projects
+        .where((p) => p.status == 'active')
+        .toList();
     final user = context.watch<AuthProvider>().currentUser;
 
     if (products.isEmpty || warehouses.isEmpty || user == null) {
@@ -104,7 +130,9 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: const Center(child: Text('Debe registrar productos y almacenes activos primero.')),
+        child: const Center(
+          child: Text('Debe registrar productos y almacenes activos primero.'),
+        ),
       );
     }
 
@@ -128,7 +156,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               ),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Row(
@@ -136,7 +164,12 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               children: [
                 Text(
                   'Registrar Movimiento',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface, letterSpacing: -0.5),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -146,7 +179,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
               ],
             ),
           ),
-          
+
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -161,8 +194,28 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       isDark: isDark,
                       value: type,
                       items: const [
-                        DropdownMenuItem(value: 'OUT', child: Text('SALIDA (Retirar Stock)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13))),
-                        DropdownMenuItem(value: 'IN', child: Text('ENTRADA (Añadir Stock)', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))),
+                        DropdownMenuItem(
+                          value: 'OUT',
+                          child: Text(
+                            'SALIDA (Retirar Stock)',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'IN',
+                          child: Text(
+                            'ENTRADA (Añadir Stock)',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ],
                       onChanged: (val) => setState(() => type = val),
                       hint: Text(
@@ -179,8 +232,20 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       icon: Icons.inventory_2_outlined,
                       isDark: isDark,
                       value: selectedProductId,
-                      items: products.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
-                      onChanged: (val) => setState(() => selectedProductId = val),
+                      items: products
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p.id,
+                              child: Text(
+                                p.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedProductId = val),
                       hint: Text(
                         'Seleccione un producto',
                         style: TextStyle(
@@ -195,8 +260,20 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       icon: Icons.storefront_outlined,
                       isDark: isDark,
                       value: selectedWarehouseId,
-                      items: warehouses.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
-                      onChanged: (val) => setState(() => selectedWarehouseId = val),
+                      items: warehouses
+                          .map(
+                            (w) => DropdownMenuItem(
+                              value: w.id,
+                              child: Text(
+                                w.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => selectedWarehouseId = val),
                       hint: Text(
                         'Seleccione un almacén',
                         style: TextStyle(
@@ -212,13 +289,28 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                         icon: Icons.assignment_outlined,
                         isDark: isDark,
                         value: selectedProjectId,
-                        items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (val) => setState(() => selectedProjectId = val),
-                        validator: (val) => val == null ? 'Seleccione un proyecto' : null,
+                        items: projects
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text(
+                                  p.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setState(() => selectedProjectId = val),
+                        validator: (val) =>
+                            val == null ? 'Seleccione un proyecto' : null,
                         hint: Text(
                           'Seleccione un proyecto',
                           style: TextStyle(
-                            color: isDark ? Colors.grey.shade400 : Colors.black54,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.black54,
                             fontSize: 13,
                           ),
                         ),
@@ -243,11 +335,11 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       maxLines: 2,
                       isRequired: false,
                     ),
-                    
+
                     const SizedBox(height: 24),
                     Divider(color: Colors.grey.withValues(alpha: 0.2)),
                     const SizedBox(height: 16),
-                    
+
                     Row(
                       children: [
                         Expanded(
@@ -255,9 +347,18 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                             onPressed: () => Navigator.pop(context),
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.grey)),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -268,35 +369,55 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                                 final mov = MovementModel(
                                   productId: selectedProductId!,
                                   warehouseId: selectedWarehouseId!,
-                                  projectId: type == 'OUT' ? selectedProjectId : null,
+                                  projectId: type == 'OUT'
+                                      ? selectedProjectId
+                                      : null,
                                   userId: user.id!,
                                   type: type!,
                                   quantity: int.parse(quantityController.text),
                                   date: DateTime.now().toIso8601String(),
                                   notes: notesController.text.trim(),
                                 );
-                                
-                                final success = await context.read<MovementsProvider>().registerMovement(mov);
-                                
+
+                                final success = await context
+                                    .read<MovementsProvider>()
+                                    .registerMovement(mov);
+
                                 if (context.mounted) {
                                   if (success) {
                                     Navigator.pop(context, true);
-                                    CustomSnackBar.showSuccess(context, 'Registro exitoso');
+                                    CustomSnackBar.showSuccess(
+                                      context,
+                                      'Registro exitoso',
+                                    );
                                   } else {
-                                    CustomSnackBar.showError(context, 'Stock insuficiente');
+                                    CustomSnackBar.showError(
+                                      context,
+                                      'Stock insuficiente',
+                                    );
                                   }
                                 }
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: type == 'IN' ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                              backgroundColor: type == 'IN'
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFDC2626),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               elevation: 0,
                             ),
                             icon: const Icon(Icons.save_rounded, size: 20),
-                            label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            label: const Text(
+                              'Guardar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -324,12 +445,16 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
   }) {
     return TextFormField(
       controller: controller,
-      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+      keyboardType: isNumber
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
       maxLines: maxLines,
       validator: (val) {
         if (isRequired && (val == null || val.isEmpty)) return 'Requerido';
         if (isNumber && val != null && val.isNotEmpty) {
-          if (int.tryParse(val) == null || int.parse(val) <= 0) return 'Cantidad inválida';
+          if (int.tryParse(val) == null || int.parse(val) <= 0) {
+            return 'Cantidad inválida';
+          }
         }
         return null;
       },
@@ -346,22 +471,33 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
         ),
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        prefixIcon: Icon(
+          icon,
+          color: isDark ? Colors.grey.shade400 : Colors.black87,
+          size: 20,
+        ),
         filled: true,
         fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         floatingLabelBehavior: FloatingLabelBehavior.always,
       ),
     );
@@ -373,7 +509,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
     required bool isDark,
     required T? value,
     required List<DropdownMenuItem<T>> items,
-    required void Function(T?) onChanged,
+    required void Function(T?)? onChanged,
     String? Function(T?)? validator,
     Widget? hint,
   }) {
@@ -383,10 +519,12 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
       items: items,
       onChanged: onChanged,
       hint: hint,
-      validator: validator ?? (val) {
-        if (val == null) return 'Requerido';
-        return null;
-      },
+      validator:
+          validator ??
+          (val) {
+            if (val == null) return 'Requerido';
+            return null;
+          },
       style: TextStyle(
         color: isDark ? Colors.white : Colors.black87,
         fontSize: 13,
@@ -399,22 +537,33 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
           color: isDark ? Colors.grey.shade400 : Colors.black54,
           fontSize: 14,
         ),
-        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        prefixIcon: Icon(
+          icon,
+          color: isDark ? Colors.grey.shade400 : Colors.black87,
+          size: 20,
+        ),
         filled: true,
         fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         floatingLabelBehavior: FloatingLabelBehavior.always,
       ),
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),

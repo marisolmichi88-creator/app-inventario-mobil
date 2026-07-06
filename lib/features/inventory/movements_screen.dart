@@ -425,6 +425,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
     // Mantiene las suscripciones para que la pantalla se refresque al cambiar
     // movimientos o productos (igual que antes; la lista usa su propio Consumer).
     context.watch<MovementsProvider>();
@@ -452,28 +453,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
           ),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(top: 8, bottom: 8, left: 4),
-            decoration: BoxDecoration(
-              color: _hasAdvancedFilters
-                  ? actionColor
-                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.tune_rounded,
-                color: _hasAdvancedFilters
-                    ? (isDark ? const Color(0xFF0F172A) : Colors.white)
-                    : (isDark ? Colors.white : const Color(0xFF2563EB)),
-                size: 20,
-              ),
-              tooltip: 'Filtrar',
-              onPressed: _showFilterSheet,
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (user?.role == 'admin')
+          if (user?.role == 'admin') ...[
             Container(
               margin: const EdgeInsets.only(top: 8, bottom: 8),
               decoration: BoxDecoration(
@@ -490,6 +470,66 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 onPressed: _showDownloadOptions,
               ),
             ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 20,
+                ),
+                tooltip: 'Limpiar Historial',
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Limpiar Historial'),
+                      content: const Text(
+                        '¿Estás seguro de que deseas eliminar TODOS los movimientos del historial? Esto no modificará el stock actual de los productos, solo limpiará el log de movimientos.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text(
+                            'Limpiar todo',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true && context.mounted) {
+                    final success = await context
+                        .read<MovementsProvider>()
+                        .clearAllMovements();
+                    if (context.mounted) {
+                      if (success) {
+                        CustomSnackBar.showSuccess(
+                          context,
+                          'Historial limpiado completamente',
+                        );
+                      } else {
+                        CustomSnackBar.showError(
+                          context,
+                          'Error al limpiar historial',
+                        );
+                      }
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
           const SizedBox(width: 8),
           Container(
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
@@ -532,32 +572,57 @@ class _MovementsScreenState extends State<MovementsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.only(
               bottom: 12,
-              top: 8,
+              top: 12,
               left: 16,
               right: 16,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                _buildFilterChip('Todos', 'ALL', Icons.list),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildFilterChip(
-                      'Solo Ingresos',
-                      'IN',
-                      Icons.arrow_downward,
-                      Colors.green,
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('Todos', 'ALL', Icons.list),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                          'Ingresos',
+                          'IN',
+                          Icons.arrow_downward,
+                          Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                          'Salidas',
+                          'OUT',
+                          Icons.arrow_upward,
+                          Colors.redAccent,
+                        ),
+                      ],
                     ),
-                    _buildFilterChip(
-                      'Solo Salidas',
-                      'OUT',
-                      Icons.arrow_upward,
-                      Colors.redAccent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _hasAdvancedFilters
+                        ? actionColor
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(10),
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      color: _hasAdvancedFilters
+                          ? (isDark ? const Color(0xFF0F172A) : Colors.white)
+                          : (isDark ? Colors.white : const Color(0xFF2563EB)),
+                      size: 20,
                     ),
-                  ],
+                    tooltip: 'Filtros Avanzados',
+                    onPressed: _showFilterSheet,
+                  ),
                 ),
               ],
             ),
@@ -750,55 +815,56 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                 ),
                               ],
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Color(0xFFEF4444),
-                                size: 24,
-                              ),
-                              padding: const EdgeInsets.only(left: 12),
-                              constraints: const BoxConstraints(),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Eliminar Movimiento'),
-                                    content: const Text(
-                                      '¿Estás seguro de que deseas eliminar este movimiento? Se revertirá el stock de este producto.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text('Cancelar'),
+                            if (isAdmin)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Color(0xFFEF4444),
+                                  size: 24,
+                                ),
+                                padding: const EdgeInsets.only(left: 12),
+                                constraints: const BoxConstraints(),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Eliminar Movimiento'),
+                                      content: const Text(
+                                        '¿Estás seguro de que deseas eliminar este movimiento? Se revertirá el stock de este producto.',
                                       ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: const Text(
-                                          'Eliminar',
-                                          style: TextStyle(color: Colors.red),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancelar'),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text(
+                                            'Eliminar',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
 
-                                if (confirm == true && context.mounted) {
-                                  final success = await context
-                                      .read<MovementsProvider>()
-                                      .deleteMovement(mov);
-                                  if (context.mounted) {
-                                    if (success) {
-                                      CustomSnackBar.showSuccess(context, 'Movimiento eliminado');
-                                      context.read<ProductsProvider>().fetchProducts();
-                                    } else {
-                                      CustomSnackBar.showError(context, 'Reversión fallida');
+                                  if (confirm == true && context.mounted) {
+                                    final success = await context
+                                        .read<MovementsProvider>()
+                                        .deleteMovement(mov);
+                                    if (context.mounted) {
+                                      if (success) {
+                                        CustomSnackBar.showSuccess(context, 'Movimiento eliminado');
+                                        context.read<ProductsProvider>().fetchProducts();
+                                      } else {
+                                        CustomSnackBar.showError(context, 'Reversión fallida');
+                                      }
                                     }
                                   }
-                                }
-                              },
-                            ),
+                                },
+                              ),
                           ],
                         ),
                       ),

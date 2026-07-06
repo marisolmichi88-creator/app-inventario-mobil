@@ -7,9 +7,10 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- HU13: columna "cliente" en proyectos
+-- HU13: columna "cliente" y "presupuesto" en proyectos
 -- ----------------------------------------------------------------------------
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS client text;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget numeric DEFAULT 0;
 
 
 -- ----------------------------------------------------------------------------

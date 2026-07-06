@@ -76,20 +76,27 @@ class MovementsProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> registerMovement(MovementModel movement) async {
+  Future<bool> registerMovement(
+    MovementModel movement, {
+    bool showNotification = true,
+    bool updateProductStock = true,
+  }) async {
     try {
       // Si es una salida, validar stock suficiente
       if (movement.type == 'OUT') {
-        final response = await _supabase
-            .from('products')
-            .select('stock')
-            .eq('id', movement.productId)
-            .maybeSingle();
-            
-        if (response != null) {
-          final currentStock = response['stock'] as int;
-          if (currentStock < movement.quantity) {
-            return false; // Stock insuficiente
+        final isPending = movement.notes?.contains('Pendiente por stock insuficiente') ?? false;
+        if (!isPending) {
+          final response = await _supabase
+              .from('products')
+              .select('stock')
+              .eq('id', movement.productId)
+              .maybeSingle();
+              
+          if (response != null) {
+            final currentStock = response['stock'] as int;
+            if (currentStock < movement.quantity) {
+              return false; // Stock insuficiente
+            }
           }
         }
       }
@@ -107,24 +114,28 @@ class MovementsProvider with ChangeNotifier {
       await _logAudit(data);
 
       // Actualizar el stock del producto
-      await _productsProvider.updateStock(
-        movement.productId,
-        movement.quantity,
-        movement.type,
-      );
+      if (updateProductStock) {
+        await _productsProvider.updateStock(
+          movement.productId,
+          movement.quantity,
+          movement.type,
+        );
+      }
 
       // Disparar notificación push local en el celular
       final isEntry = movement.type == 'IN';
       final title = isEntry ? 'Entrada de Inventario' : 'Salida de Inventario';
       final body = isEntry
-          ? 'Se registraron ${movement.quantity} unidades de...\\nPresiona para ver más.'
-          : 'Se retiraron ${movement.quantity} unidades de...\\nPresiona para ver más.';
+          ? 'Se registraron ${movement.quantity} unidades de...\nPresiona para ver más.'
+          : 'Se retiraron ${movement.quantity} unidades de...\nPresiona para ver más.';
 
-      NotificationService().showNotification(
-        id: data['id'].hashCode,
-        title: title,
-        body: body,
-      );
+      if (showNotification) {
+        NotificationService().showNotification(
+          id: data['id'].hashCode,
+          title: title,
+          body: body,
+        );
+      }
 
       await fetchMovements();
       return true;
@@ -164,6 +175,17 @@ class MovementsProvider with ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('Error deleting movement: $e');
+      return false;
+    }
+  }
+
+  Future<bool> clearAllMovements() async {
+    try {
+      await _supabase.from('movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await fetchMovements();
+      return true;
+    } catch (e) {
+      debugPrint('Error clearing all movements: $e');
       return false;
     }
   }

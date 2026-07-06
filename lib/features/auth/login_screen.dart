@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
   String? _errorMessage;
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +106,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
                       labelText: 'Contraseña',
-                      prefixIcon: Icon(Icons.lock_outline),
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
                     ),
-                    obscureText: true,
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Por favor ingresar contraseña';
                       return null;

@@ -56,7 +56,17 @@ class UsersProvider with ChangeNotifier {
         
         // El trigger de Supabase crea automáticamente el perfil como 'admin'.
         // Así que aquí lo actualizamos con los datos reales (nombre, rol correcto, etc).
-        await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
+        try {
+          await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
+        } catch (e) {
+          debugPrint('Error updating user profile: $e. Retrying without is_active.');
+          data.remove('is_active');
+          try {
+            await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
+          } catch (e2) {
+            debugPrint('Error updating user profile again: $e2');
+          }
+        }
         
         await fetchUsers();
       } else {
@@ -69,14 +79,21 @@ class UsersProvider with ChangeNotifier {
   }
 
   Future<void> updateUser(UserModel user) async {
+    final data = user.toMap();
+    data.remove('id');
     try {
-      final data = user.toMap();
-      data.remove('id');
       await _supabase.from('user_profiles').update(data).eq('id', user.id!);
       await fetchUsers();
     } catch (e) {
-      debugPrint('Error updating user: $e');
-      rethrow;
+      debugPrint('Error updating user: $e. Retrying without is_active.');
+      data.remove('is_active');
+      try {
+        await _supabase.from('user_profiles').update(data).eq('id', user.id!);
+        await fetchUsers();
+      } catch (e2) {
+        debugPrint('Error updating user again: $e2');
+        rethrow;
+      }
     }
   }
 

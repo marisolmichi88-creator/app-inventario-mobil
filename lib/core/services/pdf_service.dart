@@ -9,7 +9,9 @@ import '../../data/models/project_model.dart';
 import '../../data/models/user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'dart:convert';
+import 'dart:math';
 
 class PdfService {
   static Future<void> generateAndPrintMovementsReport(
@@ -18,20 +20,8 @@ class PdfService {
   ) async {
     final pdf = pw.Document();
 
-    // Intentar cargar la imagen del logo desde assets SVG y decodificar el base64 del PNG
-    pw.MemoryImage? logoImage;
-    try {
-      final String svgData = await rootBundle.loadString('assets/icon-proenergim.svg');
-      final RegExp regExp = RegExp(r'base64,([^"]+)');
-      final RegExpMatch? match = regExp.firstMatch(svgData);
-      if (match != null) {
-        final String base64Str = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
-        final Uint8List logoBytes = base64Decode(base64Str);
-        logoImage = pw.MemoryImage(logoBytes);
-      }
-    } catch (e) {
-      logoImage = null;
-    }
+    // Logo aplanado sobre fondo azul (sin transparencia ni fondo negro).
+    final pw.MemoryImage? logoImage = await _loadLogo();
 
     // Convertir a tabla de datos con header 'Observación'
     final tableHeaders = [
@@ -225,22 +215,8 @@ class PdfService {
     final String formattedDateTime =
         "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
 
-    // Intentar cargar la imagen del logo desde assets SVG y decodificar el base64 del PNG
-    pw.MemoryImage? logoImage;
-    try {
-      final String svgData = await rootBundle.loadString('assets/icon-proenergim.svg');
-      final RegExp regExp = RegExp(r'base64,([^"]+)');
-      final RegExpMatch? match = regExp.firstMatch(svgData);
-      if (match != null) {
-        final String base64Str = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
-        final Uint8List logoBytes = base64Decode(base64Str);
-        logoImage = pw.MemoryImage(logoBytes);
-      }
-    } catch (e) {
-      logoImage = null;
-    }
-
-
+    // Logo aplanado sobre fondo azul (sin transparencia ni fondo negro).
+    final pw.MemoryImage? logoImage = await _loadLogo();
 
     int crossAxisCount = 3;
     if (products.length == 1) {
@@ -487,20 +463,71 @@ class PdfService {
     );
   }
 
-  // Carga el logo desde el SVG (base64 embebido) de forma segura.
+  // Cache del logo ya procesado para no recalcularlo en cada reporte.
+  static pw.MemoryImage? _cachedLogo;
+
+  /// Carga el logo desde el SVG de marca (que trae una imagen en escala de
+  /// grises: logo claro sobre fondo negro) y lo recolorea a "logo azul de
+  /// marca sobre fondo blanco". Así se ve nítido en el PDF y nunca aparece
+  /// con fondo negro (se funde con la hoja blanca).
   static Future<pw.MemoryImage?> _loadLogo() async {
+    if (_cachedLogo != null) return _cachedLogo;
     try {
-      final String svgData =
-          await rootBundle.loadString('assets/icon-proenergim.svg');
-      final RegExp regExp = RegExp(r'base64,([^"]+)');
-      final RegExpMatch? match = regExp.firstMatch(svgData);
-      if (match != null) {
-        final String base64Str =
-            match.group(1)!.replaceAll(RegExp(r'\s+'), '');
-        return pw.MemoryImage(base64Decode(base64Str));
+      final svg = await rootBundle.loadString('assets/icon-proenergim.svg');
+      final match = RegExp(r'base64,([^"]+)').firstMatch(svg);
+      if (match == null) return null;
+      final b64 = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
+      final gray = img.decodePng(base64Decode(b64));
+      if (gray == null) return null;
+
+      // Recuadro del logo (píxeles con brillo > 40) y brillo máximo real.
+      int minX = gray.width, minY = gray.height, maxX = 0, maxY = 0;
+      double maxLum = 1;
+      for (int y = 0; y < gray.height; y++) {
+        for (int x = 0; x < gray.width; x++) {
+          final l = img.getLuminance(gray.getPixel(x, y)).toDouble();
+          if (l > 40) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+          if (l > maxLum) maxLum = l;
+        }
       }
-    } catch (_) {}
-    return null;
+      if (maxX <= minX || maxY <= minY) return null;
+
+      const p = 14;
+      minX = (minX - p).clamp(0, gray.width - 1);
+      minY = (minY - p).clamp(0, gray.height - 1);
+      maxX = (maxX + p).clamp(0, gray.width - 1);
+      maxY = (maxY + p).clamp(0, gray.height - 1);
+      final crop = img.copyCrop(gray,
+          x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1);
+
+      // Recolorear: fondo -> blanco, logo -> azul de marca (0x1E3A8A),
+      // normalizando por el brillo real para lograr un azul intenso.
+      final out =
+          img.Image(width: crop.width, height: crop.height, numChannels: 3);
+      for (int y = 0; y < crop.height; y++) {
+        for (int x = 0; x < crop.width; x++) {
+          var t = img.getLuminance(crop.getPixel(x, y)) / maxLum;
+          t = pow(t.clamp(0.0, 1.0), 0.75).toDouble();
+          out.setPixelRgb(
+            x,
+            y,
+            (255 + (0x1E - 255) * t).round(),
+            (255 + (0x3A - 255) * t).round(),
+            (255 + (0x8A - 255) * t).round(),
+          );
+        }
+      }
+
+      _cachedLogo = pw.MemoryImage(img.encodePng(out));
+      return _cachedLogo;
+    } catch (_) {
+      return null;
+    }
   }
 
   static String _nowStamp() {

@@ -7,6 +7,7 @@ import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
 import '../../data/models/product_model.dart';
 import '../inventory/widgets/movement_form_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -25,14 +26,36 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
   bool _isProcessing = false;
   bool _isBarcodeMode = false;
   late AnimationController _animationController;
+  int _rotationQuarterTurns = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadRotationPreference();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+  }
+
+  Future<void> _loadRotationPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _rotationQuarterTurns = prefs.getInt('scanner_rotation_turns') ?? 0;
+      });
+    } catch (e) {
+      debugPrint('Error loading rotation preference: $e');
+    }
+  }
+
+  Future<void> _saveRotationPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('scanner_rotation_turns', _rotationQuarterTurns);
+    } catch (e) {
+      debugPrint('Error saving rotation preference: $e');
+    }
   }
 
   @override
@@ -145,14 +168,27 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
             icon: const Icon(Icons.flip_camera_android, color: Colors.white),
             onPressed: () => _scannerController.switchCamera(),
           ),
+          IconButton(
+            icon: const Icon(Icons.rotate_right_rounded, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _rotationQuarterTurns = (_rotationQuarterTurns + 1) % 4;
+              });
+              _saveRotationPreference();
+            },
+            tooltip: 'Rotar cámara',
+          ),
         ],
       ),
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _scannerController,
-            onDetect: _onDetect,
+          RotatedBox(
+            quarterTurns: _rotationQuarterTurns,
+            child: MobileScanner(
+              controller: _scannerController,
+              onDetect: _onDetect,
+            ),
           ),
           
           // Capa semi-transparente alrededor del área de escaneo
@@ -494,21 +530,35 @@ class _ScannedProductSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
                       foregroundColor:
                           isDark ? const Color(0xFF0F172A) : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-                    label: const Text('Registrar movimiento',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.swap_horiz_rounded, size: 20),
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Registrar movimiento',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

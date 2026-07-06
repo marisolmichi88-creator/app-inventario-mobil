@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../core/widgets/admin_ui.dart';
 import '../../data/providers/projects_provider.dart';
 import '../../data/models/project_model.dart';
+import '../../data/providers/movements_provider.dart';
+import '../../data/providers/products_provider.dart';
 import 'project_details_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -18,6 +20,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProjectsProvider>().fetchProjects();
+      context.read<MovementsProvider>().fetchMovements();
+      context.read<ProductsProvider>().fetchProducts();
     });
   }
 
@@ -31,6 +35,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     int maxLines = 1,
     VoidCallback? onTap,
     bool readOnly = false,
+    bool isNumber = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -38,6 +43,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       readOnly: readOnly,
       onTap: onTap,
       maxLines: maxLines,
+      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       validator: (val) {
         if (!enabled) return null;
         if (maxLines == 1 && (val == null || val.isEmpty)) return 'Requerido';
@@ -84,6 +90,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final descController = TextEditingController(text: project?.description ?? '');
     final startDateController = TextEditingController(text: project?.startDate ?? '');
     final endDateController = TextEditingController(text: project?.endDate ?? '');
+    final budgetController = TextEditingController(text: project != null ? project.budget.toStringAsFixed(2) : '');
     String? status = project?.status;
     final formKey = GlobalKey<FormState>();
 
@@ -158,6 +165,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         icon: Icons.badge_outlined,
                         isDark: isDark,
                         maxLines: 2,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: budgetController,
+                        label: 'Presupuesto del Proyecto (Opcional)',
+                        hint: 'Ej. 12500.00',
+                        icon: Icons.monetization_on_outlined,
+                        isDark: isDark,
+                        isNumber: true,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
@@ -292,13 +308,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                   final newProject = ProjectModel(
                                     id: project?.id,
                                     name: nameController.text.trim(),
-                                    client: clientController.text.trim().isEmpty
-                                        ? null
-                                        : clientController.text.trim(),
+                                    client: clientController.text.trim(),
                                     description: descController.text.trim(),
                                     startDate: startDateController.text.trim(),
                                     endDate: endDateController.text.trim(),
                                     status: status!,
+                                    budget: double.tryParse(budgetController.text.trim()) ?? 0.0,
                                   );
                                   
                                   if (isEditing) {
@@ -380,6 +395,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             );
           }
 
+          final movements = context.watch<MovementsProvider>().movements;
+          final products = context.watch<ProductsProvider>().products;
+
           return ListView.builder(
             padding: const EdgeInsets.only(top: 8, bottom: 100),
             itemCount: provider.projects.length,
@@ -387,14 +405,29 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               final proj = provider.projects[index];
               final color = _statusColor(proj.status);
 
+              // Calcular el costo total de los materiales retirados para este proyecto
+              final projectMovements = movements.where((m) => m.projectId == proj.id && m.type == 'OUT').toList();
+              double materialsCost = 0.0;
+              for (var mov in projectMovements) {
+                final matchProds = products.where((p) => p.id == mov.productId).toList();
+                if (matchProds.isNotEmpty) {
+                  materialsCost += matchProds.first.price * mov.quantity;
+                }
+              }
+              final utility = proj.budget - materialsCost;
+
+              String sub = proj.client?.isNotEmpty == true
+                  ? '${_statusLabel(proj.status)} · ${proj.client}'
+                  : _statusLabel(proj.status);
+
+              sub += '\nPresupuesto: \$${proj.budget.toStringAsFixed(2)}  Costos: \$${materialsCost.toStringAsFixed(2)}  Utilidad: \$${utility.toStringAsFixed(2)}';
+
               return AdminListCard(
                 icon: Icons.business_center_outlined,
                 iconColor: color,
                 iconBackground: color.withValues(alpha: 0.12),
                 title: proj.name,
-                subtitle: proj.client?.isNotEmpty == true
-                    ? '${_statusLabel(proj.status)} · ${proj.client}'
-                    : '${_statusLabel(proj.status)}${proj.startDate != null ? ' · ${proj.startDate}' : ''}',
+                subtitle: sub,
                 onTap: () {
                   Navigator.push(
                     context,

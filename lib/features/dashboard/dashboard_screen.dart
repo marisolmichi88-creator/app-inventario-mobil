@@ -860,11 +860,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         projectsProvider.projects.where((p) => p.status == 'active').length;
 
     final products = productsProvider.products;
-    final totalProducts = products.length;
-    final lowStockProducts = products
+    final activeProductsList = products.where((p) => p.isActive).toList();
+    final totalProducts = activeProductsList.length;
+    final lowStockProducts = activeProductsList
         .where((p) => p.stock <= p.minStock)
         .length;
-    final activeStockAlertsCount = products
+    final activeStockAlertsCount = activeProductsList
         .where(
           (p) =>
               p.stock <= p.minStock &&
@@ -1435,98 +1436,107 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildProjectsReportsCard(BuildContext context, int activeProjects) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Row(
+    
+    // Proyectos Activos (Verde Mercedes)
+    const projectsColor = Color(0xFF10B981);
+
+    // Ver Reportes (Amarillo/Ámbar)
+    const reportsColor = Color(0xFFEAB308);
+
+    return Column(
       children: [
-        // Indicador de proyectos activos (HU20)
-        Expanded(
-          child: InkWell(
-            onTap: () => context.push('/projects'),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.card(isDark: isDark),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.business_center_outlined,
-                        color: Color(0xFF8B5CF6), size: 22),
+        // Fila 1: Proyectos Activos
+        InkWell(
+          onTap: () => context.push('/projects'),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppShadows.card(isDark: isDark),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: projectsColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('$activeProjects',
-                            style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color:
-                                    Theme.of(context).colorScheme.onSurface)),
-                        const Text('Proyectos Activos',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                                fontWeight: FontWeight.w500)),
-                      ],
-                    ),
+                  child: const Icon(Icons.business_center_outlined, color: projectsColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Proyectos Activos',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$activeProjects proyectos en ejecución',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 22),
+              ],
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        // Acceso directo a Reportes (HU20)
-        Expanded(
-          child: InkWell(
-            onTap: () => context.push('/reports'),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF3B82F6), const Color(0xFF2563EB)]
-                      : [const Color(0xFF1E40AF), const Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        const SizedBox(height: 12),
+        // Fila 2: Ver Reportes
+        InkWell(
+          onTap: () => context.push('/reports'),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppShadows.card(isDark: isDark),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: reportsColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.assessment_outlined, color: reportsColor, size: 24),
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.tinted(const Color(0xFF3B82F6),
-                    alpha: 0.12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.assessment_outlined,
-                        color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('Ver Reportes',
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ver Reportes',
                         style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Generar reportes PDF y Excel del inventario',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  const Icon(Icons.chevron_right_rounded,
-                      color: Colors.white70, size: 20),
-                ],
-              ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 22),
+              ],
             ),
           ),
         ),

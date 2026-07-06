@@ -37,24 +37,38 @@ class ProductsProvider with ChangeNotifier {
   }
 
   Future<void> addProduct(ProductModel product) async {
+    final data = product.toMap();
+    if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
-      final data = product.toMap();
-      if (data['id'] == null) data['id'] = const Uuid().v4();
       await _supabase.from('products').insert(data);
       await fetchProducts();
     } catch (e) {
-      debugPrint('Error adding product: $e');
+      debugPrint('Error adding product, retrying without warehouse_id: $e');
+      data.remove('warehouse_id');
+      try {
+        await _supabase.from('products').insert(data);
+        await fetchProducts();
+      } catch (e2) {
+        debugPrint('Error adding product: $e2');
+      }
     }
   }
 
   Future<void> updateProduct(ProductModel product) async {
+    final data = product.toMap();
+    data.remove('id');
     try {
-      final data = product.toMap();
-      data.remove('id');
       await _supabase.from('products').update(data).eq('id', product.id!);
       await fetchProducts();
     } catch (e) {
-      debugPrint('Error updating product: $e');
+      debugPrint('Error updating product, retrying without warehouse_id: $e');
+      data.remove('warehouse_id');
+      try {
+        await _supabase.from('products').update(data).eq('id', product.id!);
+        await fetchProducts();
+      } catch (e2) {
+        debugPrint('Error updating product: $e2');
+      }
     }
   }
   
@@ -77,7 +91,7 @@ class ProductsProvider with ChangeNotifier {
           NotificationService().showNotification(
             id: productId.hashCode,
             title: 'Alerta de Stock Crítico',
-            body: 'Un producto llegó al stock mínimo.\\nPresiona para ver más.',
+            body: 'Un producto llegó al stock mínimo.\nPresiona para ver más.',
           );
         }
         
