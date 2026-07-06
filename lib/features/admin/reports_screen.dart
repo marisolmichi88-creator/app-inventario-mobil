@@ -272,12 +272,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final period = await _choosePeriod();
     if (period == null || !mounted) return;
 
-    final all = context.read<MovementsProvider>().movements;
+    // Preferir el registro de auditoría inalterable (incluye movimientos que
+    // ya fueron borrados del historial). Si la tabla aún no existe, se usan
+    // los movimientos actuales como respaldo.
+    final auditLog = await context.read<MovementsProvider>().fetchAuditLog();
+    if (!mounted) return;
+
+    final source = auditLog.isNotEmpty
+        ? auditLog
+        : context.read<MovementsProvider>().movements;
     final products = context.read<ProductsProvider>().products;
     final warehouses = context.read<WarehousesProvider>().warehouses;
     final projects = context.read<ProjectsProvider>().projects;
     final users = context.read<UsersProvider>().users;
-    final filtered = _filterByPeriod(all, period.start, period.end);
+    final filtered = _filterByPeriod(source, period.start, period.end);
 
     if (filtered.isEmpty) {
       CustomSnackBar.showWarning(context, 'No hay movimientos en ese periodo');

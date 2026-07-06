@@ -48,6 +48,34 @@ class MovementsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Guarda una copia inalterable del movimiento en 'movement_audit' (HU24).
+  // Si la tabla no existe todavía, no hace nada (no rompe el registro).
+  Future<void> _logAudit(Map<String, dynamic> movementData) async {
+    try {
+      final auditData = Map<String, dynamic>.from(movementData);
+      final movId = auditData.remove('id');
+      auditData['movement_id'] = movId;
+      await _supabase.from('movement_audit').insert(auditData);
+    } catch (e) {
+      debugPrint('Auditoría omitida (movement_audit no disponible): $e');
+    }
+  }
+
+  /// Lee el registro de auditoría inalterable (HU24). Devuelve lista vacía si
+  /// la tabla no existe, para que el reporte use los movimientos actuales.
+  Future<List<MovementModel>> fetchAuditLog() async {
+    try {
+      final response = await _supabase
+          .from('movement_audit')
+          .select()
+          .order('date', ascending: false);
+      return response.map((m) => MovementModel.fromMap(m)).toList();
+    } catch (e) {
+      debugPrint('Error fetching audit log: $e');
+      return [];
+    }
+  }
+
   Future<bool> registerMovement(MovementModel movement) async {
     try {
       // Si es una salida, validar stock suficiente
@@ -69,9 +97,15 @@ class MovementsProvider with ChangeNotifier {
       // Insertar el movimiento
       final data = movement.toMap();
       if (data['id'] == null) data['id'] = const Uuid().v4();
-      
+
       await _supabase.from('movements').insert(data);
-      
+
+      // Registro de auditoría inalterable (HU24). Se guarda una copia que
+      // NO se borra aunque el movimiento se elimine del historial.
+      // Es defensivo: si la tabla 'movement_audit' aún no existe, se omite
+      // sin afectar el registro del movimiento.
+      await _logAudit(data);
+
       // Actualizar el stock del producto
       await _productsProvider.updateStock(
         movement.productId,

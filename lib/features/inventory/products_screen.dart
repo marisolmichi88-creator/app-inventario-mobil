@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
+import '../../data/providers/movements_provider.dart';
+import '../../data/providers/warehouses_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
@@ -23,6 +25,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String _searchQuery = '';
   bool _showOnlyLowStock = false;
   String? _filterCategoryId; // null = todas las categorías
+  String? _filterWarehouseId; // null = stock global (todos los almacenes)
 
   @override
   void initState() {
@@ -31,7 +34,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
       context.read<ProductsProvider>().fetchProducts();
       // Categorías para mostrar su nombre en el reporte exportado.
       context.read<CategoriesProvider>().fetchCategories();
+      // Para el stock por almacén calculado desde los movimientos (HU17).
+      context.read<MovementsProvider>().fetchMovements();
+      context.read<WarehousesProvider>().fetchWarehouses();
     });
+  }
+
+  /// Stock por almacén calculado al vuelo desde los movimientos (HU17):
+  /// suma de entradas menos salidas de cada producto en ese almacén.
+  Map<String, int> _stockForWarehouse(String warehouseId) {
+    final movements = context.read<MovementsProvider>().movements;
+    final Map<String, int> result = {};
+    for (final m in movements) {
+      if (m.warehouseId != warehouseId) continue;
+      final delta = m.type == 'IN' ? m.quantity : -m.quantity;
+      result[m.productId] = (result[m.productId] ?? 0) + delta;
+    }
+    return result;
   }
 
   void _showDownloadOptions() {
@@ -532,6 +551,55 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Widget _buildWarehouseChip(
+      String? warehouseId, String label, IconData icon, bool isDark) {
+    final isSelected = _filterWarehouseId == warehouseId;
+    const activeColor = Color(0xFFF59E0B); // ámbar, para diferenciar de categorías
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () => setState(() => _filterWarehouseId = warehouseId),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? activeColor
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 15,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.grey.shade300 : Colors.black87),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -593,12 +661,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
           }
 
           final categories = context.watch<CategoriesProvider>().categories;
+          // Rebuild al cambiar movimientos (para el stock por almacén - HU17)
+          context.watch<MovementsProvider>();
+          final warehouses = context
+              .watch<WarehousesProvider>()
+              .warehouses
+              .where((w) => w.isActive)
+              .toList();
+
+          // Si hay un almacén seleccionado, calcular el stock por almacén.
+          final Map<String, int>? whStock =
+              _filterWarehouseId == null ? null : _stockForWarehouse(_filterWarehouseId!);
+          int displayStock(ProductModel p) =>
+              whStock == null ? p.stock : (whStock[p.id] ?? 0);
+          final selectedWarehouseName = _filterWarehouseId == null
+              ? null
+              : warehouses
+                  .where((w) => w.id == _filterWarehouseId)
+                  .map((w) => w.name)
+                  .firstOrNull;
 
           var filteredList = provider.products.where((p) {
             final matchesQuery = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                                  p.code.toLowerCase().contains(_searchQuery.toLowerCase());
             final matchesCategory = _filterCategoryId == null || p.categoryId == _filterCategoryId;
-            final matchesLowStock = !_showOnlyLowStock || p.stock <= p.minStock;
+            // Con filtro de almacén: solo productos con movimientos en ese almacén.
+            if (whStock != null && !whStock.containsKey(p.id)) return false;
+            final ds = displayStock(p);
+            final matchesLowStock = !_showOnlyLowStock || ds <= p.minStock;
             return matchesQuery && matchesCategory && matchesLowStock;
           }).toList();
 
@@ -650,6 +740,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         (c) => _buildCategoryChip(c.id, c.name, isDark),
                       ),
                     ],
+                  ),
+                ),
+
+              // Filtro por almacén (HU17) - fila horizontal compacta
+              if (warehouses.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildWarehouseChip(null, 'Todos los almacenes',
+                            Icons.warehouse_outlined, isDark),
+                        ...warehouses.map(
+                          (w) => _buildWarehouseChip(
+                              w.id, w.name, Icons.storefront_outlined, isDark),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -732,7 +843,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
                         final prod = filteredList[index];
-                        final isLowStock = prod.stock <= prod.minStock;
+                        final stockValue = displayStock(prod);
+                        final isLowStock = stockValue <= prod.minStock;
 
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -790,18 +902,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Text(
-                                          '${prod.stock}',
+                                          '$stockValue',
                                           style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.w900,
-                                            color: isLowStock 
-                                                ? (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)) 
+                                            color: isLowStock
+                                                ? (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626))
                                                 : (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A)),
                                           ),
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      const Text('Stock', style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500)),
+                                      SizedBox(
+                                        width: 72,
+                                        child: Text(
+                                          selectedWarehouseName ?? 'Stock',
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(width: 8),
