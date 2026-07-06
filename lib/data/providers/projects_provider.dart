@@ -20,7 +20,7 @@ class ProjectsProvider with ChangeNotifier {
       final response = await _supabase.from('projects').select().order('name');
       _projects = response.map((map) => ProjectModel.fromMap(map)).toList();
     } catch (e) {
-      print('Error fetching projects: $e');
+      debugPrint('Error fetching projects: $e');
     }
 
     _isLoading = false;
@@ -34,7 +34,7 @@ class ProjectsProvider with ChangeNotifier {
       await _supabase.from('projects').insert(data);
       await fetchProjects();
     } catch (e) {
-      print('Error adding project: $e');
+      debugPrint('Error adding project: $e');
     }
   }
 
@@ -45,7 +45,7 @@ class ProjectsProvider with ChangeNotifier {
       await _supabase.from('projects').update(data).eq('id', project.id!);
       await fetchProjects();
     } catch (e) {
-      print('Error updating project: $e');
+      debugPrint('Error updating project: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class ProjectsProvider with ChangeNotifier {
       await _supabase.from('projects').delete().eq('id', id);
       await fetchProjects();
     } catch (e) {
-      print('Error deleting project: $e');
+      debugPrint('Error deleting project: $e');
     }
   }
 }

@@ -29,7 +29,7 @@ class ProductsProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error fetching products: $e');
+      debugPrint('Error fetching products: $e');
     }
 
     _isLoading = false;
@@ -43,7 +43,7 @@ class ProductsProvider with ChangeNotifier {
       await _supabase.from('products').insert(data);
       await fetchProducts();
     } catch (e) {
-      print('Error adding product: $e');
+      debugPrint('Error adding product: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class ProductsProvider with ChangeNotifier {
       await _supabase.from('products').update(data).eq('id', product.id!);
       await fetchProducts();
     } catch (e) {
-      print('Error updating product: $e');
+      debugPrint('Error updating product: $e');
     }
   }
   
@@ -84,7 +84,7 @@ class ProductsProvider with ChangeNotifier {
         await fetchProducts();
       }
     } catch (e) {
-      print('Error updating stock: $e');
+      debugPrint('Error updating stock: $e');
     }
   }
 
@@ -93,7 +93,7 @@ class ProductsProvider with ChangeNotifier {
       await _supabase.from('products').update({'is_active': !currentStatus}).eq('id', id);
       await fetchProducts();
     } catch (e) {
-      print('Error toggling status: $e');
+      debugPrint('Error toggling status: $e');
     }
   }
 
@@ -111,7 +111,7 @@ class ProductsProvider with ChangeNotifier {
       await fetchProducts();
       return true;
     } catch (e) {
-      print('Error deleting product: $e');
+      debugPrint('Error deleting product: $e');
       return false;
     }
   }

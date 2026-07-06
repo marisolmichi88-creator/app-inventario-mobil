@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
 
@@ -19,7 +18,7 @@ class AuthProvider with ChangeNotifier {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
         final authUser = session.user;
-        
+
         // Cargar perfil del usuario desde Supabase
         final profile = await Supabase.instance.client
             .from('user_profiles')
@@ -41,7 +40,7 @@ class AuthProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Auth Check Error: $e');
+      debugPrint('Auth Check Error: $e');
     }
 
     _isLoading = false;
@@ -53,10 +52,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final AuthResponse res = await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      final AuthResponse res = await Supabase.instance.client.auth
+          .signInWithPassword(email: email, password: password);
 
       final authUser = res.user;
       if (authUser != null) {
@@ -76,7 +73,7 @@ class AuthProvider with ChangeNotifier {
             role: profile['role'],
             isActive: profile['is_active'] == true,
           );
-          
+
           _isLoading = false;
           notifyListeners();
           return true;
@@ -85,7 +82,7 @@ class AuthProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Login error: $e');
+      debugPrint('Login error: $e');
     }
 
     _isLoading = false;
@@ -101,11 +98,11 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> updateProfile(String name, String email) async {
     if (_currentUser == null) return;
-    
-    await Supabase.instance.client.from('user_profiles').update({
-      'name': name,
-      'email': email,
-    }).eq('id', _currentUser!.id!);
+
+    await Supabase.instance.client
+        .from('user_profiles')
+        .update({'name': name, 'email': email})
+        .eq('id', _currentUser!.id!);
     _currentUser = UserModel(
       id: _currentUser!.id,
       name: name,
@@ -121,13 +118,17 @@ class AuthProvider with ChangeNotifier {
     await Supabase.instance.client.auth.resetPasswordForEmail(email);
   }
 
-  Future<void> verifyCodeAndResetPassword(String email, String token, String newPassword) async {
+  Future<void> verifyCodeAndResetPassword(
+    String email,
+    String token,
+    String newPassword,
+  ) async {
     final response = await Supabase.instance.client.auth.verifyOTP(
       type: OtpType.recovery,
       token: token,
       email: email,
     );
-    
+
     if (response.session != null) {
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: newPassword),

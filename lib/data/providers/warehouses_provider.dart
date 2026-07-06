@@ -20,7 +20,7 @@ class WarehousesProvider with ChangeNotifier {
       final response = await _supabase.from('warehouses').select().order('name');
       _warehouses = response.map((map) => WarehouseModel.fromMap(map)).toList();
     } catch (e) {
-      print('Error fetching warehouses: $e');
+      debugPrint('Error fetching warehouses: $e');
     }
 
     _isLoading = false;
@@ -34,7 +34,7 @@ class WarehousesProvider with ChangeNotifier {
       await _supabase.from('warehouses').insert(data);
       await fetchWarehouses();
     } catch (e) {
-      print('Error adding warehouse: $e');
+      debugPrint('Error adding warehouse: $e');
     }
   }
 
@@ -45,7 +45,7 @@ class WarehousesProvider with ChangeNotifier {
       await _supabase.from('warehouses').update(data).eq('id', warehouse.id!);
       await fetchWarehouses();
     } catch (e) {
-      print('Error updating warehouse: $e');
+      debugPrint('Error updating warehouse: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class WarehousesProvider with ChangeNotifier {
       await _supabase.from('warehouses').update({'is_active': !currentStatus}).eq('id', id);
       await fetchWarehouses();
     } catch (e) {
-      print('Error toggling warehouse status: $e');
+      debugPrint('Error toggling warehouse status: $e');
     }
   }
 }

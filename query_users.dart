@@ -1,5 +1,4 @@
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 void main() async {
   final url = Uri.parse('https://xzegdfhcxypnffurfvwc.supabase.co/rest/v1/user_profiles');
@@ -9,5 +8,6 @@ void main() async {
       'apikey': 'sb_publishable_WqoRr7eEbZnsGKZHctLUJQ_MyIv1B0n',
     },
   );
+  // ignore: avoid_print
   print(response.body);
 }

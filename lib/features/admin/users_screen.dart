@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_non_null_assertion
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/admin_ui.dart';
@@ -292,6 +293,7 @@ class _UsersScreenState extends State<UsersScreen> {
                               );
                               
                               if (confirm == true) {
+                                if (!context.mounted) return;
                                 try {
                                   await context.read<UsersProvider>().deleteUser(user!.id!);
                                   if (context.mounted) Navigator.pop(context);

@@ -41,7 +41,7 @@ class MovementsProvider with ChangeNotifier {
 
       _movements = response.map((map) => MovementModel.fromMap(map)).toList();
     } catch (e) {
-      print('Error fetching movements: $e');
+      debugPrint('Error fetching movements: $e');
     }
 
     _isLoading = false;
@@ -95,7 +95,7 @@ class MovementsProvider with ChangeNotifier {
       await fetchMovements();
       return true;
     } catch (e) {
-      print('Error registering movement: $e');
+      debugPrint('Error registering movement: $e');
       return false;
     }
   }
@@ -129,7 +129,7 @@ class MovementsProvider with ChangeNotifier {
       await fetchMovements();
       return true;
     } catch (e) {
-      print('Error deleting movement: $e');
+      debugPrint('Error deleting movement: $e');
       return false;
     }
   }

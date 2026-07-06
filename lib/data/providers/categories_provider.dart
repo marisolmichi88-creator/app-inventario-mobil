@@ -20,7 +20,7 @@ class CategoriesProvider with ChangeNotifier {
       final response = await _supabase.from('categories').select().order('name');
       _categories = response.map((map) => CategoryModel.fromMap(map)).toList();
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
     }
 
     _isLoading = false;
@@ -34,7 +34,7 @@ class CategoriesProvider with ChangeNotifier {
       await _supabase.from('categories').insert(data);
       await fetchCategories();
     } catch (e) {
-      print('Error adding category: $e');
+      debugPrint('Error adding category: $e');
     }
   }
 
@@ -45,7 +45,7 @@ class CategoriesProvider with ChangeNotifier {
       await _supabase.from('categories').update(data).eq('id', category.id!);
       await fetchCategories();
     } catch (e) {
-      print('Error updating category: $e');
+      debugPrint('Error updating category: $e');
     }
   }
 

@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import 'package:uuid/uuid.dart';
 
 class UsersProvider with ChangeNotifier {
   List<UserModel> _users = [];
@@ -22,7 +21,7 @@ class UsersProvider with ChangeNotifier {
       final response = await _supabase.from('user_profiles').select().order('name');
       _users = response.map((map) => UserModel.fromMap(map)).toList();
     } catch (e) {
-      print('Error fetching users: $e');
+      debugPrint('Error fetching users: $e');
     }
 
     _isLoading = false;
@@ -64,7 +63,7 @@ class UsersProvider with ChangeNotifier {
         throw Exception(authResponse['msg'] ?? 'No se pudo registrar al usuario en Supabase.');
       }
     } catch (e) {
-      print('Error adding user: $e');
+      debugPrint('Error adding user: $e');
       rethrow;
     }
   }
@@ -76,7 +75,7 @@ class UsersProvider with ChangeNotifier {
       await _supabase.from('user_profiles').update(data).eq('id', user.id!);
       await fetchUsers();
     } catch (e) {
-      print('Error updating user: $e');
+      debugPrint('Error updating user: $e');
       rethrow;
     }
   }
@@ -86,7 +85,7 @@ class UsersProvider with ChangeNotifier {
       await _supabase.from('user_profiles').delete().eq('id', id);
       await fetchUsers();
     } catch (e) {
-      print('Error deleting user: $e');
+      debugPrint('Error deleting user: $e');
       rethrow;
     }
   }
@@ -96,7 +95,7 @@ class UsersProvider with ChangeNotifier {
       await _supabase.from('user_profiles').update({'is_active': !currentStatus}).eq('id', id);
       await fetchUsers();
     } catch (e) {
-      print('Error toggling user status: $e');
+      debugPrint('Error toggling user status: $e');
     }
   }
 }
