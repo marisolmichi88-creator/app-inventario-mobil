@@ -1,6 +1,7 @@
 class ProjectModel {
   final String? id;
   final String name;
+  final String? client;
   final String? description;
   final String? startDate;
   final String? endDate;
@@ -9,6 +10,7 @@ class ProjectModel {
   ProjectModel({
     this.id,
     required this.name,
+    this.client,
     this.description,
     this.startDate,
     this.endDate,
@@ -19,6 +21,7 @@ class ProjectModel {
     return ProjectModel(
       id: map['id'],
       name: map['name'],
+      client: map['client'],
       description: map['description'],
       startDate: map['start_date'],
       endDate: map['end_date'],
@@ -29,6 +32,7 @@ class ProjectModel {
   Map<String, dynamic> toMap() {
     final map = <String, dynamic>{
       'name': name,
+      'client': client,
       'description': description,
       'start_date': startDate,
       'end_date': endDate,

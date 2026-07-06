@@ -6,6 +6,8 @@ import '../../data/providers/products_provider.dart';
 import '../../data/providers/movements_provider.dart';
 import '../../data/providers/theme_provider.dart';
 import '../../data/providers/categories_provider.dart';
+import '../../data/providers/projects_provider.dart';
+import '../../data/providers/users_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
@@ -30,6 +32,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<ProductsProvider>().fetchProducts();
       context.read<MovementsProvider>().fetchMovements();
       context.read<CategoriesProvider>().fetchCategories();
+      // Para el detalle de notificaciones (usuario y destino/proyecto) - HU25
+      context.read<ProjectsProvider>().fetchProjects();
+      if (context.read<AuthProvider>().currentUser?.role == 'admin') {
+        context.read<UsersProvider>().fetchUsers();
+      }
 
       NotificationService.onNotificationClick = (payload) {
         if (payload == 'open_notifications' && mounted) {
@@ -139,6 +146,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'dd/MM/yyyy • hh:mm a',
     ).format(parsedDate);
 
+    // Detalle: usuario y destino/proyecto (HU25)
+    final userName = context
+            .read<UsersProvider>()
+            .users
+            .where((u) => u.id == mov.userId)
+            .map((u) => u.name)
+            .firstOrNull ??
+        '';
+    final projectName = context
+            .read<ProjectsProvider>()
+            .projects
+            .where((p) => p.id == mov.projectId)
+            .map((p) => p.name)
+            .firstOrNull ??
+        '';
+    final destino = isEntry
+        ? 'Entrada a almacén'
+        : (projectName.isNotEmpty ? projectName : 'Salida');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -188,6 +214,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   'Cantidad: ${mov.quantity} | $formattedDate',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${userName.isNotEmpty ? '$userName · ' : ''}Destino: $destino',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -243,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     movementsProvider.dismissedMovementNotificationIds;
                 final activeMovements = movementsProvider.movements
                     .where((m) => !dismissedMovementIds.contains(m.id))
-                    .take(10)
+                    .take(50)
                     .toList();
 
                 final totalActiveNotifications =
@@ -818,6 +855,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final movementsProvider = context.watch<MovementsProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final categoriesProvider = context.watch<CategoriesProvider>();
+    final projectsProvider = context.watch<ProjectsProvider>();
+    final activeProjects =
+        projectsProvider.projects.where((p) => p.status == 'active').length;
 
     final products = productsProvider.products;
     final totalProducts = products.length;
@@ -837,7 +877,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             m.id,
           ),
         )
-        .take(10)
+        .take(50)
         .length;
     final activeAlertsCount =
         activeStockAlertsCount + activeMovementAlertsCount;
@@ -1046,6 +1086,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     _buildDrawerItem(
                       context: context,
+                      icon: Icons.assessment_outlined,
+                      title: 'Reportes',
+                      onTap: () => context.push('/reports'),
+                    ),
+                    _buildDrawerItem(
+                      context: context,
                       icon: Icons.qr_code_2_outlined,
                       title: 'Generador de Etiquetas (QR)',
                       onTap: () => context.push('/qr-generator'),
@@ -1206,6 +1252,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
+
+              if (user?.role == 'admin') ...[
+                const SizedBox(height: 16),
+                _buildProjectsReportsCard(context, activeProjects),
+              ],
 
               if (user?.role == 'admin') ...[
                 const SizedBox(height: 32),
@@ -1379,6 +1430,107 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProjectsReportsCard(BuildContext context, int activeProjects) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        // Indicador de proyectos activos (HU20)
+        Expanded(
+          child: InkWell(
+            onTap: () => context.push('/projects'),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShadows.card(isDark: isDark),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.business_center_outlined,
+                        color: Color(0xFF8B5CF6), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('$activeProjects',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color:
+                                    Theme.of(context).colorScheme.onSurface)),
+                        const Text('Proyectos Activos',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Acceso directo a Reportes (HU20)
+        Expanded(
+          child: InkWell(
+            onTap: () => context.push('/reports'),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF3B82F6), const Color(0xFF2563EB)]
+                      : [const Color(0xFF1E40AF), const Color(0xFF1D4ED8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShadows.tinted(const Color(0xFF3B82F6),
+                    alpha: 0.12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.assessment_outlined,
+                        color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Ver Reportes',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Colors.white70, size: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/providers/products_provider.dart';
+import '../../data/providers/categories_provider.dart';
 import '../../data/models/product_model.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/custom_snackbar.dart';
+import '../../core/widgets/download_options_sheet.dart';
+import '../../core/services/pdf_service.dart';
+import '../../core/services/excel_service.dart';
 import '../../features/auth/auth_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -18,13 +22,49 @@ class _ProductsScreenState extends State<ProductsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showOnlyLowStock = false;
+  String? _filterCategoryId; // null = todas las categorías
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductsProvider>().fetchProducts();
+      // Categorías para mostrar su nombre en el reporte exportado.
+      context.read<CategoriesProvider>().fetchCategories();
     });
+  }
+
+  void _showDownloadOptions() {
+    final productsProvider = context.read<ProductsProvider>();
+    final categoriesProvider = context.read<CategoriesProvider>();
+
+    DownloadOptionsSheet.show(
+      context,
+      title: 'Descargar Inventario',
+      subtitle: 'Exporta el catálogo de productos',
+      options: [
+        DownloadOption(
+          icon: Icons.picture_as_pdf_rounded,
+          title: 'Exportar PDF',
+          subtitle: 'Estado actual del stock en PDF',
+          color: const Color(0xFFDC2626),
+          onTap: () => PdfService.generateInventoryReport(
+            productsProvider.products,
+            categoriesProvider.categories,
+          ),
+        ),
+        DownloadOption(
+          icon: Icons.table_chart_rounded,
+          title: 'Exportar Excel',
+          subtitle: 'Archivo .xlsx para hojas de cálculo',
+          color: const Color(0xFF16A34A),
+          onTap: () => ExcelService.exportInventory(
+            productsProvider.products,
+            categoriesProvider.categories,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -94,6 +134,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final currentUser = context.read<AuthProvider>().currentUser;
         final isAdmin = currentUser?.role == 'admin';
         String selectedCurrency = product?.currency ?? 'PEN';
+        String? selectedCategoryId = product?.categoryId;
+        final categories = context.read<CategoriesProvider>().categories;
         
         return StatefulBuilder(
           builder: (context, setState) {
@@ -178,6 +220,66 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     icon: Icons.local_offer_outlined,
                     isDark: isDark,
                     enabled: isAdmin,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: categories.any((c) => c.id == selectedCategoryId)
+                        ? selectedCategoryId
+                        : null,
+                    isExpanded: true,
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Categoría (Opcional)',
+                      labelStyle: TextStyle(
+                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(Icons.category_outlined,
+                          color: isDark ? Colors.grey.shade400 : Colors.black87,
+                          size: 20),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                    ),
+                    hint: Text(
+                      'Sin categoría',
+                      style: TextStyle(
+                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                        fontSize: 14,
+                      ),
+                    ),
+                    items: categories
+                        .map((c) => DropdownMenuItem<String>(
+                              value: c.id,
+                              child: Text(c.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14)),
+                            ))
+                        .toList(),
+                    onChanged: isAdmin
+                        ? (val) => setState(() => selectedCategoryId = val)
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -295,6 +397,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   code: codeController.text.trim(),
                                   serialNumber: serialNumberController.text.trim().isEmpty ? null : serialNumberController.text.trim(),
                                   name: nameController.text.trim(),
+                                  categoryId: selectedCategoryId,
                                   stock: int.tryParse(stockController.text) ?? 0,
                                   minStock: int.tryParse(minStockController.text) ?? 0,
                                   unit: unitController.text.trim(),
@@ -391,10 +494,48 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Widget _buildCategoryChip(String? categoryId, String label, bool isDark) {
+    final isSelected = _filterCategoryId == categoryId;
+    final activeColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () => setState(() => _filterCategoryId = categoryId),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? activeColor
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.grey.shade300 : Colors.black87),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -406,6 +547,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
           style: TextStyle(fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface, fontSize: 22, letterSpacing: -0.5)
         ),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.download_rounded, color: isDark ? Colors.white : const Color(0xFF2563EB), size: 20),
+              tooltip: 'Descargar / Exportar',
+              onPressed: _showDownloadOptions,
+            ),
+          ),
+          const SizedBox(width: 8),
           Container(
             margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
             decoration: BoxDecoration(
@@ -438,10 +592,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          final categories = context.watch<CategoriesProvider>().categories;
+
           var filteredList = provider.products.where((p) {
-            final matchesQuery = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+            final matchesQuery = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                                  p.code.toLowerCase().contains(_searchQuery.toLowerCase());
-            return _showOnlyLowStock ? (matchesQuery && p.stock <= p.minStock) : matchesQuery;
+            final matchesCategory = _filterCategoryId == null || p.categoryId == _filterCategoryId;
+            final matchesLowStock = !_showOnlyLowStock || p.stock <= p.minStock;
+            return matchesQuery && matchesCategory && matchesLowStock;
           }).toList();
 
           return Column(
@@ -478,7 +636,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
               ),
-              
+
+              // Filtro por categoría (HU05) - fila horizontal compacta
+              if (categories.isNotEmpty)
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      _buildCategoryChip(null, 'Todas', isDark),
+                      ...categories.map(
+                        (c) => _buildCategoryChip(c.id, c.name, isDark),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Stats Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),

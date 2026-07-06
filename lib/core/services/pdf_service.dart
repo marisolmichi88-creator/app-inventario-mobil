@@ -3,6 +3,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../data/models/movement_model.dart';
 import '../../data/models/product_model.dart';
+import '../../data/models/category_model.dart';
+import '../../data/models/warehouse_model.dart';
+import '../../data/models/project_model.dart';
+import '../../data/models/user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -480,6 +484,480 @@ class PdfService {
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'Etiquetas_Proenergim.pdf',
+    );
+  }
+
+  // Carga el logo desde el SVG (base64 embebido) de forma segura.
+  static Future<pw.MemoryImage?> _loadLogo() async {
+    try {
+      final String svgData =
+          await rootBundle.loadString('assets/icon-proenergim.svg');
+      final RegExp regExp = RegExp(r'base64,([^"]+)');
+      final RegExpMatch? match = regExp.firstMatch(svgData);
+      if (match != null) {
+        final String base64Str =
+            match.group(1)!.replaceAll(RegExp(r'\s+'), '');
+        return pw.MemoryImage(base64Decode(base64Str));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static String _nowStamp() {
+    final now = DateTime.now();
+    const weekdays = [
+      'Domingo',
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
+    final dayName = weekdays[now.weekday % 7];
+    return "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
+  }
+
+  /// HU21 - Reporte del estado actual del inventario (stock) en PDF.
+  static Future<void> generateInventoryReport(
+    List<ProductModel> products,
+    List<CategoryModel> categories,
+  ) async {
+    final pdf = pw.Document();
+    final logoImage = await _loadLogo();
+
+    final headers = ['Código', 'Producto', 'Categoría', 'Stock', 'Mín', 'Precio'];
+    final data = products.map((p) {
+      final categoryName = categories
+              .where((c) => c.id == p.categoryId)
+              .map((c) => c.name)
+              .firstOrNull ??
+          'Sin categoría';
+      final symbol = p.currency == 'USD' ? '\$' : 'S/.';
+      return [
+        p.code,
+        p.name,
+        categoryName,
+        p.stock.toString(),
+        p.minStock.toString(),
+        '$symbol ${p.price.toStringAsFixed(2)}',
+      ];
+    }).toList();
+
+    final totalProducts = products.length;
+    final lowStock = products.where((p) => p.stock <= p.minStock).length;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          _reportHeader(
+            logoImage,
+            'Reporte de Inventario Actual',
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            children: [
+              _summaryChip('Productos', '$totalProducts', PdfColors.blue800),
+              pw.SizedBox(width: 12),
+              _summaryChip('Stock Crítico', '$lowStock', PdfColors.red700),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+          pw.TableHelper.fromTextArray(
+            headers: headers,
+            data: data,
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            headerStyle: const pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 10,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellHeight: 26,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(70),
+              1: const pw.FlexColumnWidth(2.2),
+              2: const pw.FlexColumnWidth(1.4),
+              3: const pw.FixedColumnWidth(45),
+              4: const pw.FixedColumnWidth(40),
+              5: const pw.FixedColumnWidth(70),
+            },
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerLeft,
+              2: pw.Alignment.centerLeft,
+              3: pw.Alignment.center,
+              4: pw.Alignment.center,
+              5: pw.Alignment.centerRight,
+            },
+          ),
+        ],
+        footer: (context) => _reportFooter(context),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+      name: 'Reporte_Inventario_Proenergim.pdf',
+    );
+  }
+
+  /// HU24 - Reporte de auditoría de movimientos (esquema inalterable, solo lectura).
+  static Future<void> generateAuditReport(
+    List<MovementModel> movements,
+    List<ProductModel> products,
+    List<WarehouseModel> warehouses,
+    List<ProjectModel> projects,
+    List<UserModel> users, {
+    required String periodLabel,
+  }) async {
+    final pdf = pw.Document();
+    final logoImage = await _loadLogo();
+
+    final headers = [
+      'Fecha',
+      'Producto',
+      'Tipo',
+      'Cant.',
+      'Almacén',
+      'Proyecto',
+      'Usuario',
+    ];
+
+    final data = movements.map((mov) {
+      final productName = products
+              .where((p) => p.id == mov.productId)
+              .map((p) => p.name)
+              .firstOrNull ??
+          'Desconocido';
+      final warehouseName = warehouses
+              .where((w) => w.id == mov.warehouseId)
+              .map((w) => w.name)
+              .firstOrNull ??
+          '';
+      final projectName = projects
+              .where((p) => p.id == mov.projectId)
+              .map((p) => p.name)
+              .firstOrNull ??
+          '';
+      final userName = users
+              .where((u) => u.id == mov.userId)
+              .map((u) => u.name)
+              .firstOrNull ??
+          '';
+      final date = DateTime.tryParse(mov.date);
+      return [
+        date != null ? DateFormat('dd/MM/yy HH:mm').format(date) : mov.date,
+        productName,
+        mov.type == 'IN' ? 'Entrada' : 'Salida',
+        mov.quantity.toString(),
+        warehouseName,
+        projectName,
+        userName,
+      ];
+    }).toList();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          _reportHeader(logoImage, 'Reporte de Auditoría de Movimientos'),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey200,
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Periodo: $periodLabel',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey800,
+                  ),
+                ),
+                pw.Text(
+                  'DOCUMENTO SOLO LECTURA - NO EDITABLE',
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.red800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            'Total de registros compilados: ${movements.length}',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+          pw.SizedBox(height: 12),
+          pw.TableHelper.fromTextArray(
+            headers: headers,
+            data: data,
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            headerStyle: const pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 9,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            cellHeight: 24,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(62),
+              1: const pw.FlexColumnWidth(1.8),
+              2: const pw.FixedColumnWidth(45),
+              3: const pw.FixedColumnWidth(32),
+              4: const pw.FlexColumnWidth(1.1),
+              5: const pw.FlexColumnWidth(1.1),
+              6: const pw.FlexColumnWidth(1.1),
+            },
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerLeft,
+              2: pw.Alignment.center,
+              3: pw.Alignment.center,
+              4: pw.Alignment.centerLeft,
+              5: pw.Alignment.centerLeft,
+              6: pw.Alignment.centerLeft,
+            },
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Este reporte fue generado automáticamente y compila todas las entradas y '
+            'salidas del periodo sin permitir modificaciones. Su contenido refleja el '
+            'estado inalterable de los movimientos registrados en el sistema.',
+            style: const pw.TextStyle(
+              fontSize: 8,
+              color: PdfColors.grey600,
+              fontStyle: pw.FontStyle.italic,
+            ),
+          ),
+        ],
+        footer: (context) => _reportFooter(context),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+      name: 'Reporte_Auditoria_Proenergim.pdf',
+    );
+  }
+
+  // ---------- Helpers de diseño compartidos por los reportes nuevos ----------
+
+  static pw.Widget _reportHeader(pw.MemoryImage? logo, String subtitle) {
+    return pw.Column(
+      children: [
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'PROENERGIM',
+                  style: const pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  subtitle,
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ],
+            ),
+            if (logo != null)
+              pw.Container(
+                width: 45,
+                height: 45,
+                child: pw.Image(logo, fit: pw.BoxFit.contain),
+              ),
+          ],
+        ),
+        pw.SizedBox(height: 12),
+        pw.Divider(color: PdfColors.blue900, thickness: 1),
+      ],
+    );
+  }
+
+  static pw.Widget _summaryChip(String label, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColors.grey300),
+      ),
+      child: pw.Row(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _reportFooter(pw.Context context) {
+    return pw.Column(
+      children: [
+        pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+        pw.SizedBox(height: 4),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Generado el: ${_nowStamp()}',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+            ),
+            pw.Text(
+              'Página ${context.pageNumber} de ${context.pagesCount}',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// HU23 - Reporte del consumo de materiales de un proyecto (productos,
+  /// cantidades y costos) en PDF.
+  static Future<void> generateProjectReport(
+    ProjectModel project,
+    List<MovementModel> movements,
+    List<ProductModel> products,
+  ) async {
+    final pdf = pw.Document();
+    final logoImage = await _loadLogo();
+
+    // Solo salidas (OUT) asociadas al proyecto
+    final projectMovements =
+        movements.where((m) => m.projectId == project.id && m.type == 'OUT');
+
+    double total = 0.0;
+    final data = projectMovements.map((mov) {
+      final product = products
+              .where((p) => p.id == mov.productId)
+              .firstOrNull;
+      final name = product?.name ?? 'Desconocido';
+      final price = product?.price ?? 0.0;
+      final cost = price * mov.quantity;
+      total += cost;
+      final date = DateTime.tryParse(mov.date);
+      return [
+        date != null ? DateFormat('dd/MM/yyyy').format(date) : mov.date,
+        name,
+        mov.quantity.toString(),
+        price.toStringAsFixed(2),
+        cost.toStringAsFixed(2),
+      ];
+    }).toList();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          _reportHeader(logoImage, 'Reporte de Consumo por Proyecto'),
+          pw.SizedBox(height: 12),
+          pw.Text(
+            'Proyecto: ${project.name}',
+            style: const pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue900,
+            ),
+          ),
+          if (project.client?.isNotEmpty == true) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(
+              'Cliente: ${project.client}',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
+            ),
+          ],
+          if (project.description?.isNotEmpty == true) ...[
+            pw.SizedBox(height: 2),
+            pw.Text(
+              project.description!,
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+            ),
+          ],
+          pw.SizedBox(height: 12),
+          pw.TableHelper.fromTextArray(
+            headers: ['Fecha', 'Producto', 'Cant.', 'P. Unit.', 'Costo'],
+            data: data,
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            headerStyle: const pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 10,
+            ),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellHeight: 26,
+            columnWidths: {
+              0: const pw.FixedColumnWidth(70),
+              1: const pw.FlexColumnWidth(2.2),
+              2: const pw.FixedColumnWidth(40),
+              3: const pw.FixedColumnWidth(60),
+              4: const pw.FixedColumnWidth(70),
+            },
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerLeft,
+              2: pw.Alignment.center,
+              3: pw.Alignment.centerRight,
+              4: pw.Alignment.centerRight,
+            },
+          ),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(
+              'Costo total del proyecto: ${total.toStringAsFixed(2)}',
+              style: const pw.TextStyle(
+                fontSize: 13,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.blue900,
+              ),
+            ),
+          ),
+        ],
+        footer: (context) => _reportFooter(context),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+      name: 'Reporte_Proyecto_Proenergim.pdf',
     );
   }
 }

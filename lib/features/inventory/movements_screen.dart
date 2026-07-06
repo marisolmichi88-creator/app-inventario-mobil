@@ -6,11 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/warehouses_provider.dart';
 import '../../data/providers/projects_provider.dart';
+import '../../data/providers/users_provider.dart';
+import '../../data/models/movement_model.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/services/excel_service.dart';
 import 'package:intl/intl.dart';
 import 'widgets/movement_form_dialog.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/custom_snackbar.dart';
+import '../../core/widgets/download_options_sheet.dart';
 
 class MovementsScreen extends StatefulWidget {
   final bool showForm;
@@ -22,6 +26,39 @@ class MovementsScreen extends StatefulWidget {
 
 class _MovementsScreenState extends State<MovementsScreen> {
   String _filterType = 'ALL'; // ALL, IN, OUT
+  String? _filterProductId;
+  String? _filterWarehouseId;
+  String? _filterUserId;
+  DateTime? _filterStart;
+  DateTime? _filterEnd;
+
+  bool get _hasAdvancedFilters =>
+      _filterProductId != null ||
+      _filterWarehouseId != null ||
+      _filterUserId != null ||
+      _filterStart != null ||
+      _filterEnd != null;
+
+  List<MovementModel> _applyFilters(List<MovementModel> movements) {
+    return movements.where((m) {
+      if (_filterType != 'ALL' && m.type != _filterType) return false;
+      if (_filterProductId != null && m.productId != _filterProductId) {
+        return false;
+      }
+      if (_filterWarehouseId != null && m.warehouseId != _filterWarehouseId) {
+        return false;
+      }
+      if (_filterUserId != null && m.userId != _filterUserId) return false;
+      final d = DateTime.tryParse(m.date);
+      if (_filterStart != null && (d == null || d.isBefore(_filterStart!))) {
+        return false;
+      }
+      if (_filterEnd != null && (d == null || d.isAfter(_filterEnd!))) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -31,6 +68,11 @@ class _MovementsScreenState extends State<MovementsScreen> {
       context.read<ProductsProvider>().fetchProducts();
       context.read<WarehousesProvider>().fetchWarehouses();
       context.read<ProjectsProvider>().fetchProjects();
+      // Para que los reportes muestren el nombre del usuario (solo admin).
+      final user = context.read<AuthProvider>().currentUser;
+      if (user?.role == 'admin') {
+        context.read<UsersProvider>().fetchUsers();
+      }
       if (widget.showForm) {
         _showMovementForm();
       }
@@ -56,11 +98,337 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
+  void _showFilterSheet() {
+    final products = context.read<ProductsProvider>().products;
+    final warehouses = context.read<WarehousesProvider>().warehouses;
+    final users = context.read<UsersProvider>().users;
+    final isAdmin =
+        context.read<AuthProvider>().currentUser?.role == 'admin';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+
+    // Valores temporales dentro del panel
+    String? tmpProduct = _filterProductId;
+    String? tmpWarehouse = _filterWarehouseId;
+    String? tmpUser = _filterUserId;
+    DateTime? tmpStart = _filterStart;
+    DateTime? tmpEnd = _filterEnd;
+
+    InputDecoration deco(String label, IconData icon) => InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+              color: isDark ? Colors.grey.shade400 : Colors.black54,
+              fontSize: 14),
+          prefixIcon: Icon(icon,
+              color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+          filled: true,
+          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+        );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            String dateLabel() {
+              if (tmpStart == null && tmpEnd == null) return 'Cualquier fecha';
+              final f = DateFormat('dd/MM/yyyy');
+              final s = tmpStart != null ? f.format(tmpStart!) : '...';
+              final e = tmpEnd != null ? f.format(tmpEnd!) : '...';
+              return '$s  →  $e';
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                    MediaQuery.of(ctx).padding.bottom +
+                    24,
+                left: 24,
+                right: 24,
+                top: 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Filtrar movimientos',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Theme.of(ctx).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Rango de fechas
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () async {
+                        final range = await showDateRangePicker(
+                          context: ctx,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                          initialDateRange: tmpStart != null && tmpEnd != null
+                              ? DateTimeRange(start: tmpStart!, end: tmpEnd!)
+                              : null,
+                        );
+                        if (range != null) {
+                          setSheet(() {
+                            tmpStart = DateTime(range.start.year,
+                                range.start.month, range.start.day);
+                            tmpEnd = DateTime(range.end.year, range.end.month,
+                                range.end.day, 23, 59, 59);
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: deco('Rango de fechas', Icons.date_range_outlined),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              dateLabel(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(ctx).colorScheme.onSurface,
+                              ),
+                            ),
+                            if (tmpStart != null || tmpEnd != null)
+                              GestureDetector(
+                                onTap: () =>
+                                    setSheet(() {
+                                  tmpStart = null;
+                                  tmpEnd = null;
+                                }),
+                                child: const Icon(Icons.clear,
+                                    size: 18, color: Colors.grey),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: tmpProduct,
+                      isExpanded: true,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      decoration:
+                          deco('Producto', Icons.inventory_2_outlined),
+                      hint: const Text('Todos', style: TextStyle(fontSize: 14)),
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Todos')),
+                        ...products.map((p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text(p.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14)))),
+                      ],
+                      onChanged: (v) => setSheet(() => tmpProduct = v),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: tmpWarehouse,
+                      isExpanded: true,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      decoration:
+                          deco('Almacén', Icons.storefront_outlined),
+                      hint: const Text('Todos', style: TextStyle(fontSize: 14)),
+                      items: [
+                        const DropdownMenuItem<String>(
+                            value: null, child: Text('Todos')),
+                        ...warehouses.map((w) => DropdownMenuItem(
+                            value: w.id,
+                            child: Text(w.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14)))),
+                      ],
+                      onChanged: (v) => setSheet(() => tmpWarehouse = v),
+                    ),
+                    if (isAdmin) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: tmpUser,
+                        isExpanded: true,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        decoration: deco('Usuario', Icons.person_outline),
+                        hint:
+                            const Text('Todos', style: TextStyle(fontSize: 14)),
+                        items: [
+                          const DropdownMenuItem<String>(
+                              value: null, child: Text('Todos')),
+                          ...users.map((u) => DropdownMenuItem(
+                              value: u.id,
+                              child: Text(u.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14)))),
+                        ],
+                        onChanged: (v) => setSheet(() => tmpUser = v),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              setState(() {
+                                _filterProductId = null;
+                                _filterWarehouseId = null;
+                                _filterUserId = null;
+                                _filterStart = null;
+                                _filterEnd = null;
+                              });
+                            },
+                            style: TextButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('Limpiar',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.grey)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              setState(() {
+                                _filterProductId = tmpProduct;
+                                _filterWarehouseId = tmpWarehouse;
+                                _filterUserId = tmpUser;
+                                _filterStart = tmpStart;
+                                _filterEnd = tmpEnd;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.check_rounded, size: 20),
+                            label: const Text('Aplicar',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDownloadOptions() {
+    final productsProvider = context.read<ProductsProvider>();
+    final warehousesProvider = context.read<WarehousesProvider>();
+    final projectsProvider = context.read<ProjectsProvider>();
+    final usersProvider = context.read<UsersProvider>();
+
+    // Exporta respetando los filtros activos (tipo, fecha, producto, etc.)
+    final movements = _applyFilters(context.read<MovementsProvider>().movements);
+    final subtitle = _hasAdvancedFilters || _filterType != 'ALL'
+        ? 'Se exportará el resultado filtrado (${movements.length})'
+        : 'Historial completo (${movements.length})';
+
+    DownloadOptionsSheet.show(
+      context,
+      title: 'Descargar Movimientos',
+      subtitle: subtitle,
+      options: [
+        DownloadOption(
+          icon: Icons.picture_as_pdf_rounded,
+          title: 'Exportar PDF',
+          subtitle: 'Documento para imprimir',
+          color: const Color(0xFFDC2626),
+          onTap: () => PdfService.generateAndPrintMovementsReport(
+            movements,
+            productsProvider.products,
+          ),
+        ),
+        DownloadOption(
+          icon: Icons.table_chart_rounded,
+          title: 'Exportar Excel',
+          subtitle: 'Archivo .xlsx para hojas de cálculo',
+          color: const Color(0xFF16A34A),
+          onTap: () => ExcelService.exportMovements(
+            movements,
+            productsProvider.products,
+            warehousesProvider.warehouses,
+            projectsProvider.projects,
+            usersProvider.users,
+          ),
+        ),
+        DownloadOption(
+          icon: Icons.verified_user_outlined,
+          title: 'Reporte de Auditoría',
+          subtitle: 'Elegir semana / mes / rango (solo lectura)',
+          color: const Color(0xFF7C3AED),
+          onTap: () async => context.push('/reports'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    final movementsProvider = context.watch<MovementsProvider>();
-    final productsProvider = context.watch<ProductsProvider>();
+    // Mantiene las suscripciones para que la pantalla se refresque al cambiar
+    // movimientos o productos (igual que antes; la lista usa su propio Consumer).
+    context.watch<MovementsProvider>();
+    context.watch<ProductsProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final actionColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
 
@@ -84,6 +452,27 @@ class _MovementsScreenState extends State<MovementsScreen> {
           ),
         ),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 8, left: 4),
+            decoration: BoxDecoration(
+              color: _hasAdvancedFilters
+                  ? actionColor
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.tune_rounded,
+                color: _hasAdvancedFilters
+                    ? (isDark ? const Color(0xFF0F172A) : Colors.white)
+                    : (isDark ? Colors.white : const Color(0xFF2563EB)),
+                size: 20,
+              ),
+              tooltip: 'Filtrar',
+              onPressed: _showFilterSheet,
+            ),
+          ),
+          const SizedBox(width: 8),
           if (user?.role == 'admin')
             Container(
               margin: const EdgeInsets.only(top: 8, bottom: 8),
@@ -93,17 +482,12 @@ class _MovementsScreenState extends State<MovementsScreen> {
               ),
               child: IconButton(
                 icon: Icon(
-                  Icons.picture_as_pdf_rounded,
+                  Icons.download_rounded,
                   color: isDark ? Colors.white : const Color(0xFF2563EB),
                   size: 20,
                 ),
-                tooltip: 'Exportar a PDF',
-                onPressed: () async {
-                  await PdfService.generateAndPrintMovementsReport(
-                    movementsProvider.movements,
-                    productsProvider.products,
-                  );
-                },
+                tooltip: 'Descargar / Exportar',
+                onPressed: _showDownloadOptions,
               ),
             ),
           const SizedBox(width: 8),
@@ -186,10 +570,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final filteredMovements = provider.movements.where((m) {
-                  if (_filterType == 'ALL') return true;
-                  return m.type == _filterType;
-                }).toList();
+                final filteredMovements = _applyFilters(provider.movements);
 
                 if (filteredMovements.isEmpty) {
                   return Align(

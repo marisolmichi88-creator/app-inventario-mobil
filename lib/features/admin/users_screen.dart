@@ -77,6 +77,9 @@ class _UsersScreenState extends State<UsersScreen> {
     final emailController = TextEditingController(text: user?.email ?? '');
     final passwordController = TextEditingController(text: user?.password ?? '');
     String? selectedRole = user?.role;
+    if (selectedRole != null && selectedRole != 'admin') {
+      selectedRole = 'operador';
+    }
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(

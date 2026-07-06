@@ -28,25 +28,39 @@ class ProjectsProvider with ChangeNotifier {
   }
 
   Future<void> addProject(ProjectModel project) async {
+    final data = project.toMap();
+    if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
-      final data = project.toMap();
-      if (data['id'] == null) data['id'] = const Uuid().v4();
       await _supabase.from('projects').insert(data);
-      await fetchProjects();
     } catch (e) {
-      debugPrint('Error adding project: $e');
+      // Si la columna 'client' aún no existe en la BD, reintenta sin ella
+      // para no romper la creación del proyecto.
+      debugPrint('Insert proyecto: reintentando sin client. Detalle: $e');
+      data.remove('client');
+      try {
+        await _supabase.from('projects').insert(data);
+      } catch (e2) {
+        debugPrint('Error adding project: $e2');
+      }
     }
+    await fetchProjects();
   }
 
   Future<void> updateProject(ProjectModel project) async {
+    final data = project.toMap();
+    data.remove('id');
     try {
-      final data = project.toMap();
-      data.remove('id');
       await _supabase.from('projects').update(data).eq('id', project.id!);
-      await fetchProjects();
     } catch (e) {
-      debugPrint('Error updating project: $e');
+      debugPrint('Update proyecto: reintentando sin client. Detalle: $e');
+      data.remove('client');
+      try {
+        await _supabase.from('projects').update(data).eq('id', project.id!);
+      } catch (e2) {
+        debugPrint('Error updating project: $e2');
+      }
     }
+    await fetchProjects();
   }
 
   Future<void> deleteProject(String id) async {

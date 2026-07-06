@@ -53,4 +53,27 @@ class CategoriesProvider with ChangeNotifier {
     // La tabla de categorias original no tenia is_active en Supabase,
     // pero si lo agregamos, aqui se actualizaria.
   }
+
+  /// Elimina una categoría. Devuelve false si hay productos que la usan
+  /// (en ese caso no se elimina para no dejar productos huérfanos).
+  Future<bool> deleteCategory(String id) async {
+    try {
+      final inUse = await _supabase
+          .from('products')
+          .select('id')
+          .eq('category_id', id)
+          .limit(1);
+
+      if (inUse.isNotEmpty) {
+        return false;
+      }
+
+      await _supabase.from('categories').delete().eq('id', id);
+      await fetchCategories();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting category: $e');
+      rethrow;
+    }
+  }
 }

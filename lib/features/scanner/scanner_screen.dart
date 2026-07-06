@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_shadows.dart';
+import '../../data/providers/products_provider.dart';
+import '../../data/providers/categories_provider.dart';
+import '../../data/models/product_model.dart';
 import '../inventory/widgets/movement_form_dialog.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -40,33 +44,78 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
-    
+
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
         setState(() => _isProcessing = true);
         final String code = barcode.rawValue!;
-        
+
         // Retroalimentación física (Vibración)
         HapticFeedback.heavyImpact();
-        
-        // Detener el escáner mientras se muestra el formulario
+
+        // Detener el escáner mientras se muestra la información
         _scannerController.stop();
-        
-        // Mostrar el formulario directamente sobre la cámara
-        await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => MovementFormDialog(prefilledCode: code),
-        );
-        
-        // Reiniciar el escáner cuando se cierre el diálogo
+
+        // Primero mostrar la tarjeta con la información del producto (HU07)
+        await _showProductInfo(code);
+
+        // Reiniciar el escáner cuando se cierre todo
         if (mounted) {
           setState(() => _isProcessing = false);
           _scannerController.start();
         }
         break;
       }
+    }
+  }
+
+  Future<void> _showProductInfo(String code) async {
+    final productsProvider = context.read<ProductsProvider>();
+    final categoriesProvider = context.read<CategoriesProvider>();
+
+    if (productsProvider.products.isEmpty) {
+      await productsProvider.fetchProducts();
+    }
+    if (categoriesProvider.categories.isEmpty) {
+      await categoriesProvider.fetchCategories();
+    }
+    if (!mounted) return;
+
+    ProductModel? product;
+    for (final p in productsProvider.products) {
+      if (p.code == code) {
+        product = p;
+        break;
+      }
+    }
+
+    final categoryName = product?.categoryId == null
+        ? 'Sin categoría'
+        : categoriesProvider.categories
+                .where((c) => c.id == product!.categoryId)
+                .map((c) => c.name)
+                .firstOrNull ??
+            'Sin categoría';
+
+    // La tarjeta devuelve true si el usuario quiere registrar un movimiento.
+    final register = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ScannedProductSheet(
+        code: code,
+        product: product,
+        categoryName: categoryName,
+      ),
+    );
+
+    if (register == true && mounted) {
+      await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => MovementFormDialog(prefilledCode: code),
+      );
     }
   }
 
@@ -283,10 +332,222 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                 ? BorderSide(color: color, width: 4) : BorderSide.none,
             left: (alignment == Alignment.topLeft || alignment == Alignment.bottomLeft) 
                 ? BorderSide(color: color, width: 4) : BorderSide.none,
-            right: (alignment == Alignment.topRight || alignment == Alignment.bottomRight) 
+            right: (alignment == Alignment.topRight || alignment == Alignment.bottomRight)
                 ? BorderSide(color: color, width: 4) : BorderSide.none,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Tarjeta que muestra la información del producto escaneado (HU07)
+/// con la opción de registrar un movimiento.
+class _ScannedProductSheet extends StatelessWidget {
+  final String code;
+  final ProductModel? product;
+  final String categoryName;
+
+  const _ScannedProductSheet({
+    required this.code,
+    required this.product,
+    required this.categoryName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+    final found = product != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+        left: 24,
+        right: 24,
+        top: 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (!found) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.search_off_rounded,
+                      color: Color(0xFFEF4444), size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Producto no encontrado',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('Código: $code',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('Cerrar',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16, color: accent)),
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.inventory_2_outlined, color: accent, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    product!.name,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _infoRow(context, isDark, Icons.qr_code_2, 'Código', product!.code),
+            _infoRow(context, isDark, Icons.category_outlined, 'Categoría',
+                categoryName),
+            _infoRow(context, isDark, Icons.inventory_2_outlined, 'Stock actual',
+                '${product!.stock} ${product!.unit?.isNotEmpty == true ? product!.unit : 'und'}'),
+            _infoRow(
+              context,
+              isDark,
+              Icons.payments_outlined,
+              'Precio',
+              '${product!.currency == 'USD' ? '\$' : 'S/.'} ${product!.price.toStringAsFixed(2)}',
+            ),
+            if (product!.serialNumber?.isNotEmpty == true)
+              _infoRow(context, isDark, Icons.tag, 'N° de serie',
+                  product!.serialNumber!),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Cerrar',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: accent)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor:
+                          isDark ? const Color(0xFF0F172A) : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+                    label: const Text('Registrar movimiento',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(BuildContext context, bool isDark, IconData icon, String label,
+      String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

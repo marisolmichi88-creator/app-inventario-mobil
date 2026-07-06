@@ -11,6 +11,7 @@ import '../../features/admin/warehouses_screen.dart';
 import '../../features/admin/projects_screen.dart';
 import '../../features/admin/qr_generator_screen.dart';
 import '../../features/admin/backup_screen.dart';
+import '../../features/admin/reports_screen.dart';
 import '../../features/inventory/products_screen.dart';
 import '../../features/inventory/movements_screen.dart';
 import '../../features/scanner/scanner_screen.dart';
@@ -107,6 +108,10 @@ class AppRouter {
         GoRoute(
           path: '/backup',
           builder: (context, state) => const BackupScreen(),
+        ),
+        GoRoute(
+          path: '/reports',
+          builder: (context, state) => const ReportsScreen(),
         ),
       ],
     );

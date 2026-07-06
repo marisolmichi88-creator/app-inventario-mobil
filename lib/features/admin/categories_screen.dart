@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/admin_ui.dart';
+import '../../core/widgets/custom_snackbar.dart';
 import '../../data/providers/categories_provider.dart';
 import '../../data/models/category_model.dart';
 
@@ -72,6 +73,58 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
+  void _confirmDeleteCategory(BuildContext sheetContext, CategoryModel category) {
+    showDialog(
+      context: sheetContext,
+      builder: (dialogCtx) {
+        final isDark = Theme.of(dialogCtx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: const Text('¿Estás seguro?',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text('¿Desea eliminar la categoría "${category.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogCtx); // Cerrar diálogo
+                Navigator.pop(sheetContext); // Cerrar formulario
+
+                try {
+                  final deleted = await context
+                      .read<CategoriesProvider>()
+                      .deleteCategory(category.id!);
+                  if (!mounted) return;
+                  if (deleted) {
+                    CustomSnackBar.showSuccess(context, 'Categoría eliminada');
+                  } else {
+                    CustomSnackBar.showWarning(
+                        context, 'No se puede eliminar: tiene productos asociados');
+                  }
+                } catch (_) {
+                  if (mounted) {
+                    CustomSnackBar.showError(context, 'Error al eliminar');
+                  }
+                }
+              },
+              child: const Text('Eliminar',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showCategoryForm([CategoryModel? category]) {
     final isEditing = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
@@ -125,9 +178,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isEditing)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  color: Colors.redAccent),
+                              tooltip: 'Eliminar categoría',
+                              onPressed: () =>
+                                  _confirmDeleteCategory(context, category),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),

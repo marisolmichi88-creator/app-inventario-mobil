@@ -80,6 +80,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void _showProjectForm([ProjectModel? project]) {
     final isEditing = project != null;
     final nameController = TextEditingController(text: project?.name ?? '');
+    final clientController = TextEditingController(text: project?.client ?? '');
     final descController = TextEditingController(text: project?.description ?? '');
     final startDateController = TextEditingController(text: project?.startDate ?? '');
     final endDateController = TextEditingController(text: project?.endDate ?? '');
@@ -148,6 +149,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         hint: 'Ej. Instalación Solar Planta Norte',
                         icon: Icons.business_center_outlined,
                         isDark: isDark,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: clientController,
+                        label: 'Cliente (Opcional)',
+                        hint: 'Ej. Empresa Minera del Sur S.A.',
+                        icon: Icons.badge_outlined,
+                        isDark: isDark,
+                        maxLines: 2,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
@@ -282,6 +292,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                   final newProject = ProjectModel(
                                     id: project?.id,
                                     name: nameController.text.trim(),
+                                    client: clientController.text.trim().isEmpty
+                                        ? null
+                                        : clientController.text.trim(),
                                     description: descController.text.trim(),
                                     startDate: startDateController.text.trim(),
                                     endDate: endDateController.text.trim(),
@@ -379,7 +392,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 iconColor: color,
                 iconBackground: color.withValues(alpha: 0.12),
                 title: proj.name,
-                subtitle: '${_statusLabel(proj.status)}${proj.startDate != null ? ' · ${proj.startDate}' : ''}',
+                subtitle: proj.client?.isNotEmpty == true
+                    ? '${_statusLabel(proj.status)} · ${proj.client}'
+                    : '${_statusLabel(proj.status)}${proj.startDate != null ? ' · ${proj.startDate}' : ''}',
                 onTap: () {
                   Navigator.push(
                     context,
