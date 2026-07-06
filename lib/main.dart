@@ -12,6 +12,7 @@ import 'data/providers/movements_provider.dart';
 import 'data/providers/theme_provider.dart';
 import 'core/services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -21,8 +22,38 @@ void main() async {
     publishableKey: 'sb_publishable_WqoRr7eEbZnsGKZHctLUJQ_MyIv1B0n',
   );
 
-  // Base de datos local removida
+  // --- ACTUALIZACIÓN DE BASE DE DATOS TEMPORAL ---
+  try {
+    debugPrint('Iniciando migración remota...');
+    // 1. Cambiar min_stock a 5
+    await Supabase.instance.client.from('products').update({'min_stock': 5}).eq('min_stock', 0);
+    debugPrint('¡Stock mínimo en la nube actualizado a 5!');
 
+    // 2. Insertar los almacenes originales
+    final originalWarehouses = ['IMPORTADOS', 'LAS MERCEDES', 'ALMACEN 2'];
+    for (final name in originalWarehouses) {
+      final existing = await Supabase.instance.client
+          .from('warehouses')
+          .select()
+          .eq('name', name)
+          .maybeSingle();
+      
+      if (existing == null) {
+        await Supabase.instance.client.from('warehouses').insert({
+          'name': name,
+          'location': 'Sede Principal',
+          'is_active': true,
+        });
+        debugPrint('Almacén creado en la nube: $name');
+      }
+    }
+    debugPrint('¡Migración remota finalizada con éxito!');
+  } catch (e) {
+    debugPrint('Error actualizando la base de datos remota: $e');
+  }
+  // ------------------------------------------------
+
+  // Base de datos local removida
 
   // Inicializar notificaciones locales
   await NotificationService().init();
@@ -72,22 +103,25 @@ class _AppWithThemeState extends State<_AppWithTheme> {
   void initState() {
     super.initState();
     _router = AppRouter.createRouter(context);
-    
+
     // Iniciar suscripción en tiempo real de Supabase nativa
-    Supabase.instance.client.channel('public:all').onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      callback: (payload) {
-        if (mounted) {
-          context.read<ProductsProvider>().fetchProducts();
-          context.read<CategoriesProvider>().fetchCategories();
-          context.read<UsersProvider>().fetchUsers();
-          context.read<WarehousesProvider>().fetchWarehouses();
-          context.read<ProjectsProvider>().fetchProjects();
-          context.read<MovementsProvider>().fetchMovements();
-        }
-      }
-    ).subscribe();
+    Supabase.instance.client
+        .channel('public:all')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          callback: (payload) {
+            if (mounted) {
+              context.read<ProductsProvider>().fetchProducts();
+              context.read<CategoriesProvider>().fetchCategories();
+              context.read<UsersProvider>().fetchUsers();
+              context.read<WarehousesProvider>().fetchWarehouses();
+              context.read<ProjectsProvider>().fetchProjects();
+              context.read<MovementsProvider>().fetchMovements();
+            }
+          },
+        )
+        .subscribe();
   }
 
   @override

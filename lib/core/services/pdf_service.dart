@@ -5,6 +5,7 @@ import '../../data/models/movement_model.dart';
 import '../../data/models/product_model.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 
 class PdfService {
   static Future<void> generateAndPrintMovementsReport(
@@ -13,12 +14,17 @@ class PdfService {
   ) async {
     final pdf = pw.Document();
 
-    // Intentar cargar la imagen del logo desde assets
+    // Intentar cargar la imagen del logo desde assets SVG y decodificar el base64 del PNG
     pw.MemoryImage? logoImage;
     try {
-      final ByteData logoData = await rootBundle.load('assets/icon.png');
-      final Uint8List logoBytes = logoData.buffer.asUint8List();
-      logoImage = pw.MemoryImage(logoBytes);
+      final String svgData = await rootBundle.loadString('assets/icon-proenergim.svg');
+      final RegExp regExp = RegExp(r'base64,([^"]+)');
+      final RegExpMatch? match = regExp.firstMatch(svgData);
+      if (match != null) {
+        final String base64Str = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
+        final Uint8List logoBytes = base64Decode(base64Str);
+        logoImage = pw.MemoryImage(logoBytes);
+      }
     } catch (e) {
       logoImage = null;
     }
@@ -215,12 +221,17 @@ class PdfService {
     final String formattedDateTime =
         "$dayName, ${DateFormat('dd/MM/yyyy HH:mm').format(now)}";
 
-    // Intentar cargar la imagen del logo desde assets
+    // Intentar cargar la imagen del logo desde assets SVG y decodificar el base64 del PNG
     pw.MemoryImage? logoImage;
     try {
-      final ByteData logoData = await rootBundle.load('assets/icon.png');
-      final Uint8List logoBytes = logoData.buffer.asUint8List();
-      logoImage = pw.MemoryImage(logoBytes);
+      final String svgData = await rootBundle.loadString('assets/icon-proenergim.svg');
+      final RegExp regExp = RegExp(r'base64,([^"]+)');
+      final RegExpMatch? match = regExp.firstMatch(svgData);
+      if (match != null) {
+        final String base64Str = match.group(1)!.replaceAll(RegExp(r'\s+'), '');
+        final Uint8List logoBytes = base64Decode(base64Str);
+        logoImage = pw.MemoryImage(logoBytes);
+      }
     } catch (e) {
       logoImage = null;
     }

@@ -131,7 +131,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: SvgPicture.asset(
-                          'assets/icon-proenergim.svg',
+                          'assets/icon.svg',
                           height: 100,
                           width: 100,
                           fit: BoxFit.contain,
