@@ -19,6 +19,16 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/dashboard/main_layout.dart';
 
 class AppRouter {
+  static const _adminOnlyPaths = <String>{
+    '/users',
+    '/categories',
+    '/warehouses',
+    '/projects',
+    '/qr-generator',
+    '/backup',
+    '/reports',
+  };
+
   static GoRouter createRouter(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
 
@@ -41,6 +51,15 @@ class AppRouter {
         }
 
         if (isAuthenticated && (isLoginRoute || isSplash || isForgotPasswordRoute)) {
+          return '/';
+        }
+
+        // El catálogo, escáner y registro de movimientos son de trabajo diario:
+        // los operadores pueden consultarlos y registrar entradas/salidas. Las
+        // pantallas de configuración y administración no deben poder abrirse
+        // mediante una URL directa.
+        final isAdminOnlyRoute = _adminOnlyPaths.contains(state.uri.path);
+        if (isAdminOnlyRoute && authProvider.currentUser?.role != 'admin') {
           return '/';
         }
 

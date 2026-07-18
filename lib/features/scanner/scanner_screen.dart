@@ -107,7 +107,9 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
     ProductModel? product;
     for (final p in productsProvider.products) {
-      if (p.code == code) {
+      // Un producto puede identificarse por el código de fábrica, por el QR
+      // interno o por el número de serie de una unidad individual.
+      if (p.code == code || p.internalQr == code || p.serialNumber == code) {
         product = p;
         break;
       }
@@ -496,8 +498,29 @@ class _ScannedProductSheet extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             _infoRow(context, isDark, Icons.qr_code_2, 'Código', product!.code),
+            if (product!.internalQr?.isNotEmpty == true)
+              _infoRow(context, isDark, Icons.qr_code, 'QR interno',
+                  product!.internalQr!),
             _infoRow(context, isDark, Icons.category_outlined, 'Categoría',
                 categoryName),
+            if (product!.subtype?.isNotEmpty == true)
+              _infoRow(context, isDark, Icons.category, 'Subtipo',
+                  product!.subtype!),
+            if (product!.brand?.isNotEmpty == true)
+              _infoRow(context, isDark, Icons.business_outlined, 'Marca',
+                  product!.brand!),
+            if (product!.model?.isNotEmpty == true)
+              _infoRow(context, isDark, Icons.precision_manufacturing_outlined,
+                  'Modelo', product!.model!),
+            ...product!.attributes.entries.map(
+              (entry) => _infoRow(
+                context,
+                isDark,
+                Icons.tune_outlined,
+                entry.key,
+                entry.value.toString(),
+              ),
+            ),
             _infoRow(context, isDark, Icons.inventory_2_outlined, 'Stock actual',
                 '${product!.stock} ${product!.unit?.isNotEmpty == true ? product!.unit : 'und'}'),
             _infoRow(

@@ -1,8 +1,13 @@
 class ProductModel {
   final String? id;
   final String code;
+  final String? internalQr;
   final String? serialNumber;
   final String name;
+  final String? subtype;
+  final String? brand;
+  final String? model;
+  final Map<String, dynamic> attributes;
   final String? categoryId;
   final String? warehouseId;
   final int stock;
@@ -15,8 +20,13 @@ class ProductModel {
   ProductModel({
     this.id,
     required this.code,
+    this.internalQr,
     this.serialNumber,
     required this.name,
+    this.subtype,
+    this.brand,
+    this.model,
+    this.attributes = const {},
     this.categoryId,
     this.warehouseId,
     this.stock = 0,
@@ -31,8 +41,15 @@ class ProductModel {
     return ProductModel(
       id: map['id'],
       code: map['code'],
+      internalQr: map['internal_qr'],
       serialNumber: map['serial_number'],
       name: map['name'],
+      subtype: map['subtype'],
+      brand: map['brand'],
+      model: map['model'],
+      attributes: map['attributes'] is Map
+          ? Map<String, dynamic>.from(map['attributes'] as Map)
+          : const {},
       categoryId: map['category_id'],
       warehouseId: map['warehouse_id'],
       stock: map['stock'] ?? 0,
@@ -47,8 +64,13 @@ class ProductModel {
   Map<String, dynamic> toMap() {
     final map = <String, dynamic>{
       'code': code,
+      'internal_qr': internalQr,
       'serial_number': serialNumber,
       'name': name,
+      'subtype': subtype,
+      'brand': brand,
+      'model': model,
+      'attributes': attributes,
       'category_id': categoryId,
       'warehouse_id': warehouseId,
       'stock': stock,

@@ -63,7 +63,10 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
           if (widget.prefilledCode != null) {
             try {
               selectedProductId = products
-                  .firstWhere((p) => p.code == widget.prefilledCode)
+                  .firstWhere((p) =>
+                      p.code == widget.prefilledCode ||
+                      p.internalQr == widget.prefilledCode ||
+                      p.serialNumber == widget.prefilledCode)
                   .id;
             } catch (_) {
               selectedProductId = null;

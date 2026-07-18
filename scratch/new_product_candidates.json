@@ -1,0 +1,123 @@
+[
+  {
+    "foto": 3,
+    "producto_propuesto": "Thinner/Disolvente",
+    "categoria": "Ferreteria",
+    "marca": "AMJAS COLORS",
+    "modelo": "Acrilico Master A300",
+    "codigo_fabrica": "",
+    "datos_tecnicos": "Thinner acrilico para lacas; 3.50 Lts; UN 1263; formula reforzada; sin codigo de barras",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Thinner acrílico: no existe ficha equivalente en el Excel."
+  },
+  {
+    "foto": 13,
+    "producto_propuesto": "Hidrolavadora",
+    "categoria": "Equipos",
+    "marca": "KARCHER",
+    "modelo": "Portatil",
+    "codigo_fabrica": "",
+    "datos_tecnicos": "Hidrolavadora portatil; 1200W; 1500 psi; 300 l/h; incluye lanza, manguera 3m, pistola; sin codigo visible en esta cara",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Hidrolavadora portátil: no existe ficha equivalente en el Excel."
+  },
+  {
+    "foto": 17,
+    "producto_propuesto": "Caja registro pozo a tierra",
+    "categoria": "Ferreteria",
+    "marca": "RODASYgel",
+    "modelo": "-",
+    "codigo_fabrica": "",
+    "datos_tecnicos": "Caja de registro para sistemas de pozo a tierra; hecho en Peru; acabado metalico; material aislante; sin barcode",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Caja de registro para pozo a tierra: no existe ficha equivalente."
+  },
+  {
+    "foto": 35,
+    "producto_propuesto": "Grasa/Lubricante",
+    "categoria": "Ferreteria",
+    "marca": "SKF",
+    "modelo": "LGMT 3",
+    "codigo_fabrica": "7316577045270",
+    "datos_tecnicos": "Grasa multiproposito SKF LGMT 3; Made in Belgium",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Grasa/lubricante SKF: no existe ficha equivalente."
+  },
+  {
+    "foto": 36,
+    "producto_propuesto": "Espuma de poliuretano (spray)",
+    "categoria": "Ferreteria",
+    "marca": "-",
+    "modelo": "Espuma PU 750ml",
+    "codigo_fabrica": "7807999397516",
+    "datos_tecnicos": "Espuma PU en aerosol; contiene isocianatos; 750ml/809g; origen Estonia; distribuido Sodimac/Tiendas del Mejoramiento del Hogar",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Espuma de poliuretano 750 ml: no existe ficha equivalente."
+  },
+  {
+    "foto": 37,
+    "producto_propuesto": "Espuma de poliuretano (spray)",
+    "categoria": "Ferreteria",
+    "marca": "-",
+    "modelo": "Espuma PU 340ml",
+    "codigo_fabrica": "7807999397509",
+    "datos_tecnicos": "Espuma PU en aerosol (lata mas pequena, item 340); origen Estonia; misma linea que #36",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Espuma de poliuretano 340 ml: variante que requiere ficha propia."
+  },
+  {
+    "foto": 40,
+    "producto_propuesto": "Solvente dielectrico",
+    "categoria": "Ferreteria",
+    "marca": "CGS",
+    "modelo": "Solvo-50 (SD-002-1)",
+    "codigo_fabrica": "7570 (cod interno)",
+    "datos_tecnicos": "Solvente dielectrico ecologico SOLVO-50; codigo interno 7570; sin barcode (solo etiqueta)",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Solvente dieléctrico: no existe ficha equivalente."
+  },
+  {
+    "foto": 43,
+    "producto_propuesto": "UPS",
+    "categoria": "Equipos",
+    "marca": "HIKVISION",
+    "modelo": "DS-UPS600-x",
+    "codigo_fabrica": "6942160486215",
+    "datos_tecnicos": "Sistema de energia ininterrumpida (UPS) DS-UPS600; Material Code 314001095; S/N 30143698703; Lot 20240701; Made in China",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "UPS Hikvision: no existe ficha UPS equivalente."
+  },
+  {
+    "foto": 70,
+    "producto_propuesto": "Filtro de ventilador",
+    "categoria": "Equipos",
+    "marca": "WKDQ (Wonke Electric)",
+    "modelo": "Filtro 3323-300",
+    "codigo_fabrica": "3323-300",
+    "datos_tecnicos": "Rejilla/filtro de ventilador para gabinete; TYP 3323-300; RoHS",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Filtro de ventilador: no existe ficha equivalente."
+  },
+  {
+    "foto": 122,
+    "producto_propuesto": "Herramienta (ponchadora/crimp)",
+    "categoria": "Ferreteria",
+    "marca": "-",
+    "modelo": "Crimpadora de terminales",
+    "codigo_fabrica": "",
+    "datos_tecnicos": "Alicate ponchador/crimpadora de terminales electricos (mango azul); sin marca visible",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Crimpadora de terminales: distinta del alicate genérico."
+  },
+  {
+    "foto": 125,
+    "producto_propuesto": "Herramienta (crimpadora RJ45)",
+    "categoria": "Ferreteria",
+    "marca": "KAMASA Professional",
+    "modelo": "KM-049",
+    "codigo_fabrica": "KM-049",
+    "datos_tecnicos": "Crimpadora/ponchadora de red RJ45 (8P/6P) KM-049; cable network tool",
+    "estado": "PENDIENTE DE APROBACIÓN",
+    "motivo": "Crimpadora RJ45: herramienta de red, distinta del alicate genérico."
+  }
+]

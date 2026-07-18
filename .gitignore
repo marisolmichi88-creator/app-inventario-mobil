@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Dependencias de scripts sueltos (scratch), no forman parte de la app
+node_modules/
+
+# Entregables generados (Excel, reportes), no forman parte del código de la app
+/outputs/

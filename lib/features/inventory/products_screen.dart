@@ -124,8 +124,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
           final updatedProduct = ProductModel(
             id: prod.id,
             code: prod.code,
+            internalQr: prod.internalQr,
             serialNumber: prod.serialNumber,
             name: prod.name,
+            subtype: prod.subtype,
+            brand: prod.brand,
+            model: prod.model,
+            attributes: prod.attributes,
             categoryId: prod.categoryId,
             warehouseId: warehouseId,
             stock: prod.stock,
@@ -223,8 +228,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
             final updatedProduct = ProductModel(
               id: prod.id,
               code: prod.code,
+              internalQr: prod.internalQr,
               serialNumber: prod.serialNumber,
               name: prod.name,
+              subtype: prod.subtype,
+              brand: prod.brand,
+              model: prod.model,
+              attributes: prod.attributes,
               categoryId: prod.categoryId,
               warehouseId: prod.warehouseId,
               stock: correctStock,
@@ -355,6 +365,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  String _attributesToText(Map<String, dynamic> attributes) {
+    return attributes.entries
+        .where((entry) => entry.value != null && entry.value.toString().isNotEmpty)
+        .map((entry) => '${entry.key}: ${entry.value}')
+        .join('\n');
+  }
+
+  Map<String, dynamic> _attributesFromText(String raw) {
+    final attributes = <String, dynamic>{};
+    for (final line in raw.split(RegExp(r'[\n;]'))) {
+      final separator = line.indexOf(':');
+      if (separator <= 0) continue;
+      final key = line.substring(0, separator).trim();
+      final value = line.substring(separator + 1).trim();
+      if (key.isNotEmpty && value.isNotEmpty) attributes[key] = value;
+    }
+    return attributes;
+  }
+
   void _showProductForm([ProductModel? product]) {
     final isEditing = product != null;
     final codeController = TextEditingController(text: product?.code ?? '');
@@ -362,6 +391,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
       text: product?.serialNumber ?? '',
     );
     final nameController = TextEditingController(text: product?.name ?? '');
+    final internalQrController = TextEditingController(
+      text: product?.internalQr ?? '',
+    );
+    final subtypeController = TextEditingController(text: product?.subtype ?? '');
+    final brandController = TextEditingController(text: product?.brand ?? '');
+    final modelController = TextEditingController(text: product?.model ?? '');
+    final attributesController = TextEditingController(
+      text: _attributesToText(product?.attributes ?? const {}),
+    );
     final stockController = TextEditingController(
       text: product?.stock.toString() ?? '',
     );
@@ -462,11 +500,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       const SizedBox(height: 24),
                       _buildFormField(
                         controller: codeController,
-                        label: 'Código / SKU',
-                        hint: 'Ej. PROD-0001',
+                        label: 'Código de fábrica / SKU',
+                        hint: 'Ej. 7750123456789',
                         icon: Icons.qr_code_2,
                         isDark: isDark,
                         enabled: isAdmin,
+                        isRequired: false,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: internalQrController,
+                        label: 'QR interno (solo si no tiene código)',
+                        hint: 'Ej. PROENERGIM-INV-0001',
+                        icon: Icons.qr_code,
+                        isDark: isDark,
+                        enabled: isAdmin,
+                        isRequired: false,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
@@ -476,15 +525,65 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         icon: Icons.tag,
                         isDark: isDark,
                         enabled: isAdmin,
+                        isRequired: false,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
                         controller: nameController,
-                        label: 'Nombre del Producto',
-                        hint: 'Ej. Inversor Solar 3000W',
+                        label: 'Nombre corto del producto',
+                        hint: 'Ej. Inversor',
                         icon: Icons.local_offer_outlined,
                         isDark: isDark,
                         enabled: isAdmin,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: subtypeController,
+                        label: 'Subtipo',
+                        hint: 'Ej. Inversor solar',
+                        icon: Icons.account_tree_outlined,
+                        isDark: isDark,
+                        enabled: isAdmin,
+                        isRequired: false,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildFormField(
+                              controller: brandController,
+                              label: 'Marca',
+                              hint: 'Ej. USFULL',
+                              icon: Icons.business_outlined,
+                              isDark: isDark,
+                              enabled: isAdmin,
+                              isRequired: false,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildFormField(
+                              controller: modelController,
+                              label: 'Modelo',
+                              hint: 'Ej. FU9000SI-5R5G-S2',
+                              icon: Icons.precision_manufacturing_outlined,
+                              isDark: isDark,
+                              enabled: isAdmin,
+                              isRequired: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: attributesController,
+                        label: 'Datos técnicos',
+                        hint: 'Potencia: 5.5 kW\nVoltaje: 220 V',
+                        icon: Icons.tune_outlined,
+                        isDark: isDark,
+                        enabled: isAdmin,
+                        isRequired: false,
+                        maxLines: 4,
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
@@ -880,15 +979,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
+                                    final enteredCode = codeController.text.trim();
+                                    final enteredInternalQr =
+                                        internalQrController.text.trim();
+                                    // Los artículos sin identificación física reciben
+                                    // un QR interno único. `code` se conserva como
+                                    // identificador compatible con el esquema actual.
+                                    final generatedInternalQr =
+                                        enteredInternalQr.isNotEmpty
+                                            ? enteredInternalQr
+                                            : enteredCode.isEmpty
+                                            ? 'PROENERGIM-${const Uuid().v4()}'
+                                            : null;
                                     final newProduct = ProductModel(
                                       id: product?.id,
-                                      code: codeController.text.trim(),
+                                      code: enteredCode.isNotEmpty
+                                          ? enteredCode
+                                          : generatedInternalQr!,
+                                      internalQr: generatedInternalQr,
                                       serialNumber: serialNumberController.text
                                           .trim()
                                           .isEmpty
                                           ? null
                                           : serialNumberController.text.trim(),
                                       name: nameController.text.trim(),
+                                      subtype: subtypeController.text.trim().isEmpty
+                                          ? null
+                                          : subtypeController.text.trim(),
+                                      brand: brandController.text.trim().isEmpty
+                                          ? null
+                                          : brandController.text.trim(),
+                                      model: modelController.text.trim().isEmpty
+                                          ? null
+                                          : modelController.text.trim(),
+                                      attributes: _attributesFromText(
+                                        attributesController.text,
+                                      ),
                                       categoryId: selectedCategoryId,
                                       warehouseId: selectedWarehouseId,
                                       stock:
@@ -921,8 +1047,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       final finalProduct = ProductModel(
                                         id: prodId,
                                         code: newProduct.code,
+                                        internalQr: newProduct.internalQr,
                                         serialNumber: newProduct.serialNumber,
                                         name: newProduct.name,
+                                        subtype: newProduct.subtype,
+                                        brand: newProduct.brand,
+                                        model: newProduct.model,
+                                        attributes: newProduct.attributes,
                                         categoryId: newProduct.categoryId,
                                         warehouseId: newProduct.warehouseId,
                                         stock: newProduct.stock,
@@ -1017,6 +1148,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     required bool isDark,
     bool isNumber = false,
     bool enabled = true,
+    bool isRequired = true,
     int maxLines = 1,
   }) {
     return TextFormField(
@@ -1028,7 +1160,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       maxLines: maxLines,
       validator: (val) {
         if (!enabled) return null;
-        if (val == null || val.isEmpty) return 'Requerido';
+        if (isRequired && (val == null || val.isEmpty)) return 'Requerido';
         return null;
       },
       style: TextStyle(
@@ -1404,7 +1536,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
           var filteredList = provider.products.where((p) {
             final matchesQuery =
                 p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                p.code.toLowerCase().contains(_searchQuery.toLowerCase());
+                p.code.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                (p.subtype?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                (p.brand?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                (p.model?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
             final matchesCategory =
                 _filterCategoryId == null || p.categoryId == _filterCategoryId;
             // Con filtro de almacén: solo productos con movimientos en ese almacén o que pertenezcan a él por defecto.
@@ -1705,7 +1840,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           ),
                                           const SizedBox(height: 3),
                                           Text(
-                                            'SKU: ${prod.code}',
+                                            [
+                                              if (prod.brand?.isNotEmpty == true) prod.brand!,
+                                              if (prod.model?.isNotEmpty == true) prod.model!,
+                                              'Código: ${prod.code}',
+                                            ].join(' · '),
                                             style: const TextStyle(
                                               color: Colors.grey,
                                               fontSize: 10,
