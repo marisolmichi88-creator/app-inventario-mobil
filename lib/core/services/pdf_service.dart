@@ -650,8 +650,8 @@ class PdfService {
       'Tipo',
       'Cant.',
       'Almacén',
-      'Proyecto',
       'Usuario',
+      'Estado',
     ];
 
     final data = movements.map((mov) {
@@ -676,14 +676,23 @@ class PdfService {
               .firstOrNull ??
           '';
       final date = DateTime.tryParse(mov.date);
+
+      // La constancia de un borrado se guarda como una fila más en la
+      // auditoría; sin esta columna se ve idéntica al movimiento original.
+      final esBorrado =
+          mov.notes?.startsWith('MOVIMIENTO ELIMINADO') ?? false;
+      final estado = esBorrado
+          ? 'ELIMINADO del historial'
+          : (projectName.isNotEmpty ? 'Registrado · $projectName' : 'Registrado');
+
       return [
         date != null ? DateFormat('dd/MM/yy HH:mm').format(date) : mov.date,
         productName,
         mov.type == 'IN' ? 'Entrada' : 'Salida',
         mov.quantity.toString(),
         warehouseName,
-        projectName,
         userName,
+        estado,
       ];
     }).toList();
 
@@ -741,12 +750,12 @@ class PdfService {
             cellHeight: 24,
             columnWidths: {
               0: const pw.FixedColumnWidth(62),
-              1: const pw.FlexColumnWidth(1.8),
+              1: const pw.FlexColumnWidth(1.7),
               2: const pw.FixedColumnWidth(45),
               3: const pw.FixedColumnWidth(32),
-              4: const pw.FlexColumnWidth(1.1),
-              5: const pw.FlexColumnWidth(1.1),
-              6: const pw.FlexColumnWidth(1.1),
+              4: const pw.FlexColumnWidth(1.0),
+              5: const pw.FlexColumnWidth(1.0),
+              6: const pw.FlexColumnWidth(1.5),
             },
             cellAlignments: {
               0: pw.Alignment.centerLeft,
@@ -760,9 +769,11 @@ class PdfService {
           ),
           pw.SizedBox(height: 16),
           pw.Text(
-            'Este reporte fue generado automáticamente y compila todas las entradas y '
-            'salidas del periodo sin permitir modificaciones. Su contenido refleja el '
-            'estado inalterable de los movimientos registrados en el sistema.',
+            'Este reporte compila el historial completo e inalterable de movimientos. '
+            'Un movimiento borrado del historial NO se elimina de aquí: se conserva su '
+            'registro original y se agrega una fila marcada "ELIMINADO del historial" '
+            'que deja constancia del borrado. Por eso un mismo movimiento puede '
+            'aparecer dos veces: una al registrarse y otra al eliminarse.',
             style: const pw.TextStyle(
               fontSize: 8,
               color: PdfColors.grey600,

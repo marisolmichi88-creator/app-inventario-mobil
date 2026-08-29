@@ -6,6 +6,7 @@ import '../../data/models/project_model.dart';
 import '../../data/providers/movements_provider.dart';
 import '../../data/providers/products_provider.dart';
 import 'project_details_screen.dart';
+import '../../core/widgets/custom_snackbar.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -83,6 +84,42 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     );
   }
 
+  Future<void> _confirmDeleteProject(
+    BuildContext sheetContext,
+    ProjectModel project,
+  ) async {
+    // Se captura antes del await: después, sheetContext puede haberse ido.
+    final sheetNavigator = Navigator.of(sheetContext);
+
+    final confirmed = await showAdminDeleteConfirm(
+      sheetContext,
+      title: '¿Eliminar este proyecto?',
+      itemName: project.name,
+      warning: 'Se borra de forma permanente y no se puede recuperar.\n\n'
+          'Si el proyecto ya tiene material cargado no se podrá eliminar, '
+          'porque se perdería el reporte de consumo y costos.',
+    );
+    if (!confirmed || !mounted) return;
+
+    sheetNavigator.pop();
+
+    try {
+      final deleted =
+          await context.read<ProjectsProvider>().deleteProject(project.id!);
+      if (!mounted) return;
+      if (deleted) {
+        CustomSnackBar.showSuccess(context, 'Proyecto eliminado');
+      } else {
+        CustomSnackBar.showWarning(
+          context,
+          'No se puede eliminar: ya tiene movimientos de material asociados.',
+        );
+      }
+    } catch (_) {
+      if (mounted) CustomSnackBar.showError(context, 'Error al eliminar');
+    }
+  }
+
   void _showProjectForm([ProjectModel? project]) {
     final isEditing = project != null;
     final nameController = TextEditingController(text: project?.name ?? '');
@@ -143,6 +180,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
+                          if (isEditing)
+                            adminDeleteButton(
+                              tooltip: 'Eliminar proyecto',
+                              onPressed: () =>
+                                  _confirmDeleteProject(context, project),
+                            ),
                           IconButton(
                             icon: const Icon(Icons.close),
                             onPressed: () => Navigator.pop(context),

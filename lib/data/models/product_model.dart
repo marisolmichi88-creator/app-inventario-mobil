@@ -85,4 +85,32 @@ class ProductModel {
     }
     return map;
   }
+
+  /// Claves de `attributes` que dejó la conciliación del catálogo con las
+  /// fotos. Sirven para rastrear de dónde salió cada dato, pero no son
+  /// características del producto, así que no se muestran en la app.
+  static const Set<String> internalAttributeKeys = {
+    'item_excel',
+    'estado_conciliacion',
+    'datos_foto',
+    'foto_n',
+    'foto_archivo',
+    'codigo_anterior',
+    'referencia_caja_lote',
+    'almacen_excel',
+  };
+
+  /// Características que sí se le muestran al usuario (potencia, voltaje,
+  /// calibre, talla…), sin los rastros internos de la conciliación.
+  Map<String, dynamic> get visibleAttributes => {
+        for (final e in attributes.entries)
+          if (!internalAttributeKeys.contains(e.key)) e.key: e.value,
+      };
+
+  /// Los rastros internos, para volver a guardarlos al editar el producto y
+  /// que no se pierdan por no estar en el formulario.
+  Map<String, dynamic> get hiddenAttributes => {
+        for (final e in attributes.entries)
+          if (internalAttributeKeys.contains(e.key)) e.key: e.value,
+      };
 }

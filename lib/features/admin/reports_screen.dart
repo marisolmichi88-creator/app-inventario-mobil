@@ -268,37 +268,36 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  /// La auditoría no se filtra por fecha: es el registro completo e
+  /// inalterable desde el primer movimiento, e incluye los que ya fueron
+  /// borrados del historial. Por eso no pide periodo.
   Future<void> _auditReport() async {
-    final period = await _choosePeriod();
-    if (period == null || !mounted) return;
-
-    // Preferir el registro de auditoría inalterable (incluye movimientos que
-    // ya fueron borrados del historial). Si la tabla aún no existe, se usan
-    // los movimientos actuales como respaldo.
     final auditLog = await context.read<MovementsProvider>().fetchAuditLog();
     if (!mounted) return;
 
-    final source = auditLog.isNotEmpty
-        ? auditLog
-        : context.read<MovementsProvider>().movements;
-    final products = context.read<ProductsProvider>().products;
-    final warehouses = context.read<WarehousesProvider>().warehouses;
-    final projects = context.read<ProjectsProvider>().projects;
-    final users = context.read<UsersProvider>().users;
-    final filtered = _filterByPeriod(source, period.start, period.end);
+    // Sin la tabla de auditoría no hay reporte que dar. Antes se caía a los
+    // movimientos actuales, que es justo lo contrario de lo que se pide: ahí
+    // faltarían los movimientos eliminados.
+    if (auditLog == null) {
+      CustomSnackBar.showError(
+        context,
+        'El registro de auditoría no está disponible. Ejecuta supabase_hu13_hu24.sql.',
+      );
+      return;
+    }
 
-    if (filtered.isEmpty) {
-      CustomSnackBar.showWarning(context, 'No hay movimientos en ese periodo');
+    if (auditLog.isEmpty) {
+      CustomSnackBar.showWarning(context, 'Todavía no hay movimientos registrados');
       return;
     }
 
     await PdfService.generateAuditReport(
-      filtered,
-      products,
-      warehouses,
-      projects,
-      users,
-      periodLabel: period.label,
+      auditLog,
+      context.read<ProductsProvider>().products,
+      context.read<WarehousesProvider>().warehouses,
+      context.read<ProjectsProvider>().projects,
+      context.read<UsersProvider>().users,
+      periodLabel: 'Historial completo',
     );
   }
 
@@ -411,7 +410,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             icon: Icons.verified_user_outlined,
             color: const Color(0xFFDC2626),
             title: 'Reporte de Auditoría',
-            subtitle: 'Movimientos inalterables, solo lectura (PDF)',
+            subtitle: 'Historial completo e inalterable, incluye los borrados (PDF)',
             isDark: isDark,
             onTap: _auditReport,
           ),

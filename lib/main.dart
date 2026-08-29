@@ -8,6 +8,7 @@ import 'data/providers/categories_provider.dart';
 import 'data/providers/warehouses_provider.dart';
 import 'data/providers/projects_provider.dart';
 import 'data/providers/products_provider.dart';
+import 'data/providers/database_usage_provider.dart';
 import 'data/providers/movements_provider.dart';
 import 'data/providers/theme_provider.dart';
 import 'core/services/notification_service.dart';
@@ -22,35 +23,15 @@ void main() async {
     publishableKey: 'sb_publishable_WqoRr7eEbZnsGKZHctLUJQ_MyIv1B0n',
   );
 
-  // --- ACTUALIZACIÓN DE BASE DE DATOS TEMPORAL ---
-  try {
-    debugPrint('Iniciando migración remota...');
-    // 1. Cambiar min_stock a 5
-    await Supabase.instance.client.from('products').update({'min_stock': 5}).eq('min_stock', 0);
-    debugPrint('¡Stock mínimo en la nube actualizado a 5!');
-
-    // 2. Insertar los almacenes originales
-    final originalWarehouses = ['IMPORTADOS', 'LAS MERCEDES', 'ALMACEN 2'];
-    for (final name in originalWarehouses) {
-      final existing = await Supabase.instance.client
-          .from('warehouses')
-          .select()
-          .eq('name', name)
-          .maybeSingle();
-      
-      if (existing == null) {
-        await Supabase.instance.client.from('warehouses').insert({
-          'name': name,
-          'location': 'Sede Principal',
-          'is_active': true,
-        });
-        debugPrint('Almacén creado en la nube: $name');
-      }
-    }
-    debugPrint('¡Migración remota finalizada con éxito!');
-  } catch (e) {
-    debugPrint('Error actualizando la base de datos remota: $e');
-  }
+  // Aquí vivía una "migración temporal" que corría en cada arranque, en el
+  // celular de cada usuario y antes del login: ponía min_stock = 5 a todo
+  // producto con min_stock = 0, y creaba los almacenes si faltaban.
+  //
+  // Se eliminó por tres motivos: reescribía datos de producción sin que
+  // nadie lo pidiera (los productos nuevos entran con min_stock 0 a
+  // propósito), se ejecutaba sin sesión iniciada —lo que la vuelve
+  // incompatible con RLS—, y esas migraciones ya están aplicadas en la base.
+  // Los cambios de esquema van en los scripts SQL del repositorio.
   // ------------------------------------------------
 
   // Base de datos local removida
@@ -77,6 +58,7 @@ class ProenergimApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WarehousesProvider()),
         ChangeNotifierProvider(create: (_) => ProjectsProvider()),
         ChangeNotifierProvider(create: (_) => ProductsProvider()),
+        ChangeNotifierProvider(create: (_) => DatabaseUsageProvider()),
         ChangeNotifierProxyProvider<ProductsProvider, MovementsProvider>(
           create: (context) =>
               MovementsProvider(context.read<ProductsProvider>()),

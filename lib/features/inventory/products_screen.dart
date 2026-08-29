@@ -15,6 +15,7 @@ import '../../core/widgets/custom_snackbar.dart';
 import '../../core/widgets/download_options_sheet.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/excel_service.dart';
+import '../../core/services/stock_calculator.dart';
 import '../../features/auth/auth_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -120,7 +121,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final rawWarehouseName = data['warehouse'] ?? '';
         final warehouseId = warehouseMap[normalize(rawWarehouseName)];
 
-        if (prod.currency != targetCurrency || prod.warehouseId != warehouseId) {
+        if (prod.currency != targetCurrency ||
+            prod.warehouseId != warehouseId) {
           final updatedProduct = ProductModel(
             id: prod.id,
             code: prod.code,
@@ -215,12 +217,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
       int correctedCount = 0;
       for (final prod in products) {
-        final initialMovs = movements.where(
-          (m) =>
-              m.productId == prod.id &&
-              m.type == 'IN' &&
-              m.notes == 'Carga inicial migrada desde Excel',
-        ).toList();
+        final initialMovs = movements
+            .where(
+              (m) =>
+                  m.productId == prod.id &&
+                  m.type == 'IN' &&
+                  m.notes == 'Carga inicial migrada desde Excel',
+            )
+            .toList();
 
         if (initialMovs.isNotEmpty) {
           final correctStock = initialMovs.first.quantity;
@@ -249,7 +253,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
           }
         }
       }
-      debugPrint('Corrección de stocks finalizada. Productos corregidos: $correctedCount');
+      debugPrint(
+        'Corrección de stocks finalizada. Productos corregidos: $correctedCount',
+      );
       await prefs.setBool(fixKey, true);
     } catch (e) {
       debugPrint('Error al corregir stocks duplicados: $e');
@@ -258,15 +264,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   /// Stock por almacén calculado al vuelo desde los movimientos (HU17):
   /// suma de entradas menos salidas de cada producto en ese almacén.
-  Map<String, int> _stockForWarehouse(String warehouseId) {
-    final movements = context.read<MovementsProvider>().movements;
-    final Map<String, int> result = {};
-    for (final m in movements) {
-      if (m.warehouseId != warehouseId) continue;
-      final delta = m.type == 'IN' ? m.quantity : -m.quantity;
-      result[m.productId] = (result[m.productId] ?? 0) + delta;
-    }
-    return result;
+  Map<String, int> _stockForWarehouse(
+    String warehouseId,
+    List<ProductModel> products,
+  ) {
+    return StockCalculator.byWarehouse(
+      warehouseId: warehouseId,
+      products: products,
+      movements: context.read<MovementsProvider>().movements,
+    );
   }
 
   void _showDownloadOptions() {
@@ -296,6 +302,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
           onTap: () => ExcelService.exportInventory(
             productsProvider.products,
             categoriesProvider.categories,
+          ),
+        ),
+        DownloadOption(
+          icon: Icons.qr_code_2_rounded,
+          title: 'Etiquetas con QR',
+          subtitle: 'Todos los productos, listas para imprimir y pegar',
+          color: const Color(0xFF7C3AED),
+          onTap: () => PdfService.generateLabelsPdf(productsProvider.products),
+        ),
+        DownloadOption(
+          icon: Icons.barcode_reader,
+          title: 'Etiquetas con código de barras',
+          subtitle: 'Todos los productos, en formato de barras',
+          color: const Color(0xFF0891B2),
+          onTap: () => PdfService.generateLabelsPdf(
+            productsProvider.products,
+            isBarcode: true,
           ),
         ),
       ],
@@ -367,7 +390,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   String _attributesToText(Map<String, dynamic> attributes) {
     return attributes.entries
-        .where((entry) => entry.value != null && entry.value.toString().isNotEmpty)
+        .where(
+          (entry) => entry.value != null && entry.value.toString().isNotEmpty,
+        )
         .map((entry) => '${entry.key}: ${entry.value}')
         .join('\n');
   }
@@ -394,11 +419,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final internalQrController = TextEditingController(
       text: product?.internalQr ?? '',
     );
-    final subtypeController = TextEditingController(text: product?.subtype ?? '');
+    final subtypeController = TextEditingController(
+      text: product?.subtype ?? '',
+    );
     final brandController = TextEditingController(text: product?.brand ?? '');
     final modelController = TextEditingController(text: product?.model ?? '');
     final attributesController = TextEditingController(
-      text: _attributesToText(product?.attributes ?? const {}),
+      text: _attributesToText(product?.visibleAttributes ?? const {}),
     );
     final stockController = TextEditingController(
       text: product?.stock.toString() ?? '',
@@ -896,52 +923,52 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   : Colors.grey.shade200,
                             ),
                           ),
-                          child: Column(
-                            children: warehouses.map((wh) {
+                          child: Builder(
+                            builder: (context) {
                               final movements = context
-                                  .read<MovementsProvider>()
+                                  .watch<MovementsProvider>()
                                   .movements;
-                              int stockInWh = 0;
-                              for (final m in movements) {
-                                if (m.productId == product.id &&
-                                    m.warehouseId == wh.id) {
-                                  final delta = m.type == 'IN'
-                                      ? m.quantity
-                                      : -m.quantity;
-                                  stockInWh += delta;
-                                }
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4.0,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      wh.name,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+
+                              return Column(
+                                children: warehouses.map((wh) {
+                                  final stockInWh = StockCalculator.forProduct(
+                                    product: product,
+                                    warehouseId: wh.id!,
+                                    movements: movements,
+                                  );
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4.0,
                                     ),
-                                    Text(
-                                      '$stockInWh ${product.unit?.isNotEmpty == true ? product.unit : 'UND'}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: stockInWh > 0
-                                            ? (isDark
-                                                  ? const Color(0xFF60A5FA)
-                                                  : const Color(0xFF1959AD))
-                                            : Colors.grey,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          wh.name,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          '$stockInWh ${product.unit?.isNotEmpty == true ? product.unit : 'UND'}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: stockInWh > 0
+                                                ? (isDark
+                                                      ? const Color(0xFF60A5FA)
+                                                      : const Color(0xFF1959AD))
+                                                : Colors.grey,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
+                            },
                           ),
                         ),
                       ],
@@ -979,7 +1006,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
-                                    final enteredCode = codeController.text.trim();
+                                    final enteredCode = codeController.text
+                                        .trim();
                                     final enteredInternalQr =
                                         internalQrController.text.trim();
                                     // Los artículos sin identificación física reciben
@@ -987,23 +1015,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     // identificador compatible con el esquema actual.
                                     final generatedInternalQr =
                                         enteredInternalQr.isNotEmpty
-                                            ? enteredInternalQr
-                                            : enteredCode.isEmpty
-                                            ? 'PROENERGIM-${const Uuid().v4()}'
-                                            : null;
+                                        ? enteredInternalQr
+                                        : enteredCode.isEmpty
+                                        ? 'PROENERGIM-${const Uuid().v4()}'
+                                        : null;
                                     final newProduct = ProductModel(
                                       id: product?.id,
                                       code: enteredCode.isNotEmpty
                                           ? enteredCode
                                           : generatedInternalQr!,
                                       internalQr: generatedInternalQr,
-                                      serialNumber: serialNumberController.text
-                                          .trim()
-                                          .isEmpty
+                                      serialNumber:
+                                          serialNumberController.text
+                                              .trim()
+                                              .isEmpty
                                           ? null
                                           : serialNumberController.text.trim(),
                                       name: nameController.text.trim(),
-                                      subtype: subtypeController.text.trim().isEmpty
+                                      subtype:
+                                          subtypeController.text.trim().isEmpty
                                           ? null
                                           : subtypeController.text.trim(),
                                       brand: brandController.text.trim().isEmpty
@@ -1012,9 +1042,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       model: modelController.text.trim().isEmpty
                                           ? null
                                           : modelController.text.trim(),
-                                      attributes: _attributesFromText(
-                                        attributesController.text,
-                                      ),
+                                      // Se conservan los rastros internos de la
+                                      // conciliación: no están en el formulario
+                                      // y se perderían al guardar.
+                                      attributes: {
+                                        ...?product?.hiddenAttributes,
+                                        ..._attributesFromText(
+                                          attributesController.text,
+                                        ),
+                                      },
                                       categoryId: selectedCategoryId,
                                       warehouseId: selectedWarehouseId,
                                       stock:
@@ -1035,12 +1071,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       isActive: product?.isActive ?? true,
                                     );
 
-                                    final productsProvider = context.read<ProductsProvider>();
-                                    final authProvider = context.read<AuthProvider>();
-                                    final movementsProvider = context.read<MovementsProvider>();
+                                    final productsProvider = context
+                                        .read<ProductsProvider>();
+                                    final authProvider = context
+                                        .read<AuthProvider>();
+                                    final movementsProvider = context
+                                        .read<MovementsProvider>();
 
                                     if (isEditing) {
-                                      await productsProvider.updateProduct(newProduct);
+                                      await productsProvider.updateProduct(
+                                        newProduct,
+                                      );
                                     } else {
                                       final prodId =
                                           newProduct.id ?? const Uuid().v4();
@@ -1070,14 +1111,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                                       if (finalProduct.stock > 0 &&
                                           selectedWarehouseId != null) {
-                                        final userProfileId = authProvider
-                                            .currentUser
-                                            ?.id;
+                                        final userProfileId =
+                                            authProvider.currentUser?.id;
                                         if (userProfileId != null) {
                                           final initialMovement = MovementModel(
                                             productId: prodId,
-                                            warehouseId:
-                                                selectedWarehouseId!,
+                                            warehouseId: selectedWarehouseId!,
                                             projectId: null,
                                             userId: userProfileId,
                                             type: 'IN',
@@ -1208,7 +1247,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-
   void _showFilterSheet() {
     final categories = context.read<CategoriesProvider>().categories;
     final warehouses = context
@@ -1225,28 +1263,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
     bool tmpLowStock = _showOnlyLowStock;
 
     InputDecoration deco(String label, IconData icon) => InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-              color: isDark ? Colors.grey.shade400 : Colors.black54,
-              fontSize: 14),
-          prefixIcon: Icon(icon,
-              color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
-          filled: true,
-          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-                color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-        );
+      labelText: label,
+      labelStyle: TextStyle(
+        color: isDark ? Colors.grey.shade400 : Colors.black54,
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: isDark ? Colors.grey.shade400 : Colors.black87,
+        size: 20,
+      ),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -1258,11 +1301,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                bottom:
+                    MediaQuery.of(ctx).viewInsets.bottom +
                     MediaQuery.of(ctx).padding.bottom +
                     24,
                 left: 24,
@@ -1299,19 +1344,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: tmpWarehouse,
                       isExpanded: true,
-                      dropdownColor:
-                          isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration:
-                          deco('Almacén', Icons.storefront_outlined),
+                      dropdownColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
+                      decoration: deco('Almacén', Icons.storefront_outlined),
                       hint: const Text('Todos', style: TextStyle(fontSize: 14)),
                       items: [
                         const DropdownMenuItem<String>(
-                            value: null, child: Text('Todos los almacenes')),
-                        ...warehouses.map((w) => DropdownMenuItem(
+                          value: null,
+                          child: Text('Todos los almacenes'),
+                        ),
+                        ...warehouses.map(
+                          (w) => DropdownMenuItem(
                             value: w.id,
-                            child: Text(w.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 14)))),
+                            child: Text(
+                              w.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
                       ],
                       onChanged: (v) => setSheet(() => tmpWarehouse = v),
                     ),
@@ -1321,19 +1373,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: tmpCategory,
                       isExpanded: true,
-                      dropdownColor:
-                          isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration:
-                          deco('Categoría', Icons.local_offer_outlined),
+                      dropdownColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
+                      decoration: deco('Categoría', Icons.local_offer_outlined),
                       hint: const Text('Todas', style: TextStyle(fontSize: 14)),
                       items: [
                         const DropdownMenuItem<String>(
-                            value: null, child: Text('Todas las categorías')),
-                        ...categories.map((c) => DropdownMenuItem(
+                          value: null,
+                          child: Text('Todas las categorías'),
+                        ),
+                        ...categories.map(
+                          (c) => DropdownMenuItem(
                             value: c.id,
-                            child: Text(c.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 14)))),
+                            child: Text(
+                              c.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
                       ],
                       onChanged: (v) => setSheet(() => tmpCategory = v),
                     ),
@@ -1343,17 +1402,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     DropdownButtonFormField<bool>(
                       initialValue: tmpLowStock,
                       isExpanded: true,
-                      dropdownColor:
-                          isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration:
-                          deco('Estado de Stock', Icons.warning_amber_rounded),
+                      dropdownColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
+                      decoration: deco(
+                        'Estado de Stock',
+                        Icons.warning_amber_rounded,
+                      ),
                       items: const [
                         DropdownMenuItem<bool>(
-                            value: false, child: Text('Todos los niveles')),
+                          value: false,
+                          child: Text('Todos los niveles'),
+                        ),
                         DropdownMenuItem<bool>(
-                            value: true, child: Text('Solo Stock Crítico')),
+                          value: true,
+                          child: Text('Solo Stock Crítico'),
+                        ),
                       ],
-                      onChanged: (v) => setSheet(() => tmpLowStock = v ?? false),
+                      onChanged: (v) =>
+                          setSheet(() => tmpLowStock = v ?? false),
                     ),
                     const SizedBox(height: 24),
 
@@ -1395,7 +1462,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: accent,
-                              foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              foregroundColor: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -1502,7 +1571,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-
           // Rebuild al cambiar movimientos (para el stock por almacén - HU17)
           context.watch<MovementsProvider>();
           final warehouses = context
@@ -1514,18 +1582,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
           // Si hay un almacén seleccionado, calcular el stock por almacén.
           final Map<String, int>? whStock = _filterWarehouseId == null
               ? null
-              : _stockForWarehouse(_filterWarehouseId!);
+              : _stockForWarehouse(_filterWarehouseId!, provider.products);
 
           int displayStock(ProductModel p) {
             if (_filterWarehouseId == null) return p.stock;
-            if (whStock != null && whStock.containsKey(p.id)) {
-              return whStock[p.id]!;
-            }
-            if (p.warehouseId == _filterWarehouseId) {
-              return p.stock;
-            }
-            return 0;
+            return whStock?[p.id] ?? 0;
           }
+
           final selectedWarehouseName = _filterWarehouseId == null
               ? null
               : warehouses
@@ -1537,9 +1600,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
             final matchesQuery =
                 p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                 p.code.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                (p.subtype?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                (p.brand?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-                (p.model?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+                (p.subtype?.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ??
+                    false) ||
+                (p.brand?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+                    false) ||
+                (p.model?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+                    false);
             final matchesCategory =
                 _filterCategoryId == null || p.categoryId == _filterCategoryId;
             // Con filtro de almacén: solo productos con movimientos en ese almacén o que pertenezcan a él por defecto.
@@ -1552,6 +1620,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
             final matchesLowStock = !_showOnlyLowStock || ds <= p.minStock;
             return matchesQuery && matchesCategory && matchesLowStock;
           }).toList();
+
+          // Los productos sin precio van primero para que salten a la vista y
+          // se puedan completar. El resto conserva el orden por nombre.
+          filteredList.sort((a, b) {
+            final aSinPrecio = a.price <= 0;
+            final bSinPrecio = b.price <= 0;
+            if (aSinPrecio != bSinPrecio) return aSinPrecio ? -1 : 1;
+            return a.name.compareTo(b.name);
+          });
+
+          final sinPrecio = filteredList.where((p) => p.price <= 0).length;
 
           return Column(
             children: [
@@ -1566,13 +1645,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          color: isDark
+                              ? const Color(0xFF1E293B)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: AppShadows.card(isDark: isDark),
                         ),
                         child: TextField(
                           controller: _searchController,
-                          onChanged: (val) => setState(() => _searchQuery = val),
+                          onChanged: (val) =>
+                              setState(() => _searchQuery = val),
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
@@ -1582,10 +1664,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               color: Colors.grey,
                               fontSize: 14,
                             ),
-                            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.grey,
+                            ),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear, color: Colors.grey),
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: Colors.grey,
+                                    ),
                                     onPressed: () {
                                       _searchController.clear();
                                       setState(() => _searchQuery = '');
@@ -1614,8 +1702,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         padding: const EdgeInsets.all(12),
                         icon: Icon(
                           Icons.tune_rounded,
-                          color: (_filterCategoryId != null || _filterWarehouseId != null || _showOnlyLowStock)
-                              ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD))
+                          color:
+                              (_filterCategoryId != null ||
+                                  _filterWarehouseId != null ||
+                                  _showOnlyLowStock)
+                              ? (isDark
+                                    ? const Color(0xFF60A5FA)
+                                    : const Color(0xFF1959AD))
                               : Colors.grey,
                         ),
                         onPressed: _showFilterSheet,
@@ -1736,6 +1829,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
               ),
 
+              // Aviso de productos pendientes de precio, arriba de la lista.
+              if (sinPrecio > 0)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFFF59E0B,
+                    ).withValues(alpha: isDark ? 0.16 : 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.price_change_outlined,
+                        size: 18,
+                        color: Color(0xFFB45309),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          sinPrecio == 1
+                              ? '1 producto sin precio, aparece primero'
+                              : '$sinPrecio productos sin precio',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.amber.shade200
+                                : const Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Product List
               Expanded(
                 child: filteredList.isEmpty
@@ -1767,6 +1900,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           final prod = filteredList[index];
                           final stockValue = displayStock(prod);
                           final isLowStock = stockValue <= prod.minStock;
+                          final sinPrecioProd = prod.price <= 0;
 
                           return Container(
                             margin: const EdgeInsets.symmetric(
@@ -1774,9 +1908,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white,
+                              // Fondo ámbar suave para los que falta cobrar.
+                              color: sinPrecioProd
+                                  ? (isDark
+                                        ? const Color(0xFF3A2F14)
+                                        : const Color(0xFFFEF9E7))
+                                  : (isDark
+                                        ? const Color(0xFF1E293B)
+                                        : Colors.white),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: AppShadows.card(isDark: isDark),
                               border: isLowStock
@@ -1784,6 +1923,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       color: Colors.redAccent.withValues(
                                         alpha: 0.4,
                                       ),
+                                      width: 1,
+                                    )
+                                  : sinPrecioProd
+                                  ? Border.all(
+                                      color: const Color(
+                                        0xFFF59E0B,
+                                      ).withValues(alpha: 0.45),
                                       width: 1,
                                     )
                                   : null,
@@ -1841,8 +1987,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           const SizedBox(height: 3),
                                           Text(
                                             [
-                                              if (prod.brand?.isNotEmpty == true) prod.brand!,
-                                              if (prod.model?.isNotEmpty == true) prod.model!,
+                                              if (prod.brand?.isNotEmpty ==
+                                                  true)
+                                                prod.brand!,
+                                              if (prod.model?.isNotEmpty ==
+                                                  true)
+                                                prod.model!,
                                               'Código: ${prod.code}',
                                             ].join(' · '),
                                             style: const TextStyle(

@@ -10,6 +10,7 @@ import '../../data/providers/users_provider.dart';
 import '../../data/models/movement_model.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/excel_service.dart';
+import '../../core/widgets/admin_ui.dart';
 import 'package:intl/intl.dart';
 import 'widgets/movement_form_dialog.dart';
 import '../../core/theme/app_shadows.dart';
@@ -485,30 +486,25 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 ),
                 tooltip: 'Limpiar Historial',
                 onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Limpiar Historial'),
-                      content: const Text(
-                        '¿Estás seguro de que deseas eliminar TODOS los movimientos del historial? Esto no modificará el stock actual de los productos, solo limpiará el log de movimientos.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            'Limpiar todo',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
+                  final total =
+                      context.read<MovementsProvider>().movements.length;
+
+                  final confirm = await showAdminDeleteConfirm(
+                    context,
+                    title: '¿Borrar todo el historial?',
+                    itemName: total == 1
+                        ? '1 movimiento'
+                        : '$total movimientos',
+                    warning:
+                        'Se borran TODOS los movimientos del historial, no solo '
+                        'los que ves en pantalla.\n\n'
+                        'El stock actual de los productos NO cambia, y el reporte '
+                        'de auditoría conserva el registro. Pero el historial de '
+                        'movimientos no se puede recuperar.',
+                    confirmLabel: 'Borrar todo',
                   );
 
-                  if (confirm == true && context.mounted) {
+                  if (confirm && context.mounted) {
                     final success = await context
                         .read<MovementsProvider>()
                         .clearAllMovements();

@@ -512,7 +512,7 @@ class _ScannedProductSheet extends StatelessWidget {
             if (product!.model?.isNotEmpty == true)
               _infoRow(context, isDark, Icons.precision_manufacturing_outlined,
                   'Modelo', product!.model!),
-            ...product!.attributes.entries.map(
+            ...product!.visibleAttributes.entries.map(
               (entry) => _infoRow(
                 context,
                 isDark,

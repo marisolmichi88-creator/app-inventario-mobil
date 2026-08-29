@@ -41,6 +41,11 @@ class AppRouter {
         final isForgotPasswordRoute = state.uri.toString() == '/forgot-password';
         
         if (authProvider.isLoading) {
+          // No sacar a nadie de login mientras se valida. Esas pantallas ya
+          // muestran su propio indicador, y si se las destruye a mitad del
+          // intento se pierde el mensaje de error y lo que la persona escribió:
+          // parecía que la contraseña correcta pedía login otra vez.
+          if (isLoginRoute || isForgotPasswordRoute) return null;
           return isSplash ? null : '/splash';
         }
 

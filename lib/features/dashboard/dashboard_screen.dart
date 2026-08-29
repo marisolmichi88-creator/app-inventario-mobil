@@ -1097,6 +1097,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Generador de Etiquetas (QR)',
                       onTap: () => context.push('/qr-generator'),
                     ),
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.cloud_done_outlined,
+                      title: 'Respaldo y Almacenamiento',
+                      onTap: () => context.push('/backup'),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,

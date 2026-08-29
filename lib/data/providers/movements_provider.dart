@@ -61,9 +61,37 @@ class MovementsProvider with ChangeNotifier {
     }
   }
 
-  /// Lee el registro de auditoría inalterable (HU24). Devuelve lista vacía si
-  /// la tabla no existe, para que el reporte use los movimientos actuales.
-  Future<List<MovementModel>> fetchAuditLog() async {
+  /// Deja constancia en la auditoría de que un movimiento fue eliminado.
+  ///
+  /// La copia original se conserva intacta: esto agrega un registro aparte que
+  /// dice quién lo borró y cuándo, para que el historial explique el hueco.
+  Future<void> _logAuditDeletion(MovementModel movement, String? deletedBy) async {
+    try {
+      await _supabase.from('movement_audit').insert({
+        'movement_id': movement.id,
+        'product_id': movement.productId,
+        'warehouse_id': movement.warehouseId,
+        'project_id': movement.projectId,
+        'user_id': deletedBy ?? movement.userId,
+        'type': movement.type,
+        'quantity': movement.quantity,
+        'date': DateTime.now().toIso8601String(),
+        'notes': 'MOVIMIENTO ELIMINADO del historial. '
+            'Original: ${movement.type} de ${movement.quantity} el ${movement.date}.'
+            '${movement.notes?.isNotEmpty == true ? ' Nota original: ${movement.notes}' : ''}',
+      });
+    } catch (e) {
+      debugPrint('No se pudo registrar la eliminación en auditoría: $e');
+    }
+  }
+
+  /// Lee el registro de auditoría inalterable (HU24).
+  ///
+  /// Devuelve `null` cuando la tabla `movement_audit` no está disponible (no
+  /// existe o RLS la bloquea), que es distinto de una lista vacía. Quien llama
+  /// debe avisar en vez de mostrar los movimientos actuales como si fueran la
+  /// auditoría: ahí faltarían justamente los que se eliminaron.
+  Future<List<MovementModel>?> fetchAuditLog() async {
     try {
       final response = await _supabase
           .from('movement_audit')
@@ -71,8 +99,8 @@ class MovementsProvider with ChangeNotifier {
           .order('date', ascending: false);
       return response.map((m) => MovementModel.fromMap(m)).toList();
     } catch (e) {
-      debugPrint('Error fetching audit log: $e');
-      return [];
+      debugPrint('Registro de auditoría no disponible: $e');
+      return null;
     }
   }
 
@@ -145,7 +173,9 @@ class MovementsProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> deleteMovement(MovementModel movement) async {
+  /// Borra un movimiento del historial. La auditoría NO se toca: la copia
+  /// original se conserva y además se registra la eliminación.
+  Future<bool> deleteMovement(MovementModel movement, {String? deletedBy}) async {
     try {
       if (movement.type == 'IN') {
         final response = await _supabase
@@ -163,7 +193,11 @@ class MovementsProvider with ChangeNotifier {
       }
 
       await _supabase.from('movements').delete().eq('id', movement.id!);
-      
+
+      // Solo se borra de 'movements'. La auditoría conserva la copia original
+      // y recibe además la constancia del borrado.
+      await _logAuditDeletion(movement, deletedBy);
+
       final oppositeType = movement.type == 'IN' ? 'OUT' : 'IN';
       await _productsProvider.updateStock(
         movement.productId,

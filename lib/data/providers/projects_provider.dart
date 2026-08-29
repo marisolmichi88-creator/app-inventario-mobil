@@ -65,12 +65,26 @@ class ProjectsProvider with ChangeNotifier {
     await fetchProjects();
   }
 
-  Future<void> deleteProject(String id) async {
+  /// Elimina un proyecto solo si no tiene movimientos asociados.
+  ///
+  /// Devuelve `false` sin borrar nada cuando ya se le cargó material: esos
+  /// movimientos son el sustento del reporte de consumo y de los costos, y
+  /// perderían su referencia. En ese caso conviene marcarlo como terminado.
+  Future<bool> deleteProject(String id) async {
     try {
+      final conMovimientos = await _supabase
+          .from('movements')
+          .select('id')
+          .eq('project_id', id)
+          .limit(1);
+      if (conMovimientos.isNotEmpty) return false;
+
       await _supabase.from('projects').delete().eq('id', id);
       await fetchProjects();
+      return true;
     } catch (e) {
       debugPrint('Error deleting project: $e');
+      rethrow;
     }
   }
 }
