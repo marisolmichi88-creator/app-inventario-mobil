@@ -4,6 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
+class UserCreationResult {
+  final bool requiresEmailConfirmation;
+
+  const UserCreationResult({required this.requiresEmailConfirmation});
+}
+
 class UsersProvider with ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -18,7 +24,10 @@ class UsersProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _supabase.from('user_profiles').select().order('name');
+      final response = await _supabase
+          .from('user_profiles')
+          .select()
+          .order('name');
       _users = response.map((map) => UserModel.fromMap(map)).toList();
     } catch (e) {
       debugPrint('Error fetching users: $e');
@@ -28,9 +37,11 @@ class UsersProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addUser(UserModel user) async {
+  Future<UserCreationResult> addUser(UserModel user) async {
     try {
-      final url = Uri.parse('https://xzegdfhcxypnffurfvwc.supabase.co/auth/v1/signup');
+      final url = Uri.parse(
+        'https://xzegdfhcxypnffurfvwc.supabase.co/auth/v1/signup',
+      );
       final response = await http.post(
         url,
         headers: {
@@ -38,39 +49,77 @@ class UsersProvider with ChangeNotifier {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'email': user.email,
+          'email': user.email.trim().toLowerCase(),
           'password': user.password,
-          'data': {
-            'name': user.name,
-            'role': user.role,
-          }
+          'data': {'name': user.name, 'role': user.role},
         }),
       );
 
-      final authResponse = jsonDecode(response.body);
+      final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
+      final authResponse = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{};
+      final nestedUser = authResponse['user'];
+      final authUser = nestedUser is Map
+          ? Map<String, dynamic>.from(nestedUser)
+          : authResponse;
+      final authUserId = authUser['id']?.toString();
 
-      if (response.statusCode == 200 && authResponse['id'] != null) {
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          authUserId != null) {
         final data = user.toMap();
         data.remove('id'); // Remove id so we don't update the primary key
-        data['auth_user_id'] = authResponse['id'];
-        
-        // El trigger de Supabase crea automáticamente el perfil como 'admin'.
-        // Así que aquí lo actualizamos con los datos reales (nombre, rol correcto, etc).
-        try {
-          await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
-        } catch (e) {
-          debugPrint('Error updating user profile: $e. Retrying without is_active.');
-          data.remove('is_active');
-          try {
-            await _supabase.from('user_profiles').update(data).eq('auth_user_id', authResponse['id']);
-          } catch (e2) {
-            debugPrint('Error updating user profile again: $e2');
-          }
+        data['auth_user_id'] = authUserId;
+        data['email'] = user.email.trim().toLowerCase();
+
+        // El trigger crea un perfil inactivo y sin privilegios. La sesión del
+        // administrador es la única que puede activarlo y asignarle el rol.
+        var profile = await _supabase
+            .from('user_profiles')
+            .update(data)
+            .eq('auth_user_id', authUserId)
+            .select()
+            .maybeSingle();
+
+        // El trigger es síncrono, pero este respaldo permite recuperar una
+        // instalación antigua donde todavía no se hubiera creado.
+        profile ??= await _supabase
+            .from('user_profiles')
+            .insert(data)
+            .select()
+            .single();
+
+        final profileIsValid =
+            profile['auth_user_id']?.toString() == authUserId &&
+            profile['role'] == user.role &&
+            profile['is_active'] == true &&
+            profile['email']?.toString().toLowerCase() ==
+                user.email.trim().toLowerCase();
+        if (!profileIsValid) {
+          throw Exception(
+            'La cuenta se creó en autenticación, pero su perfil no quedó '
+            'configurado correctamente. Desactívala y contacta a soporte '
+            'antes de entregarla al usuario.',
+          );
         }
-        
+
         await fetchUsers();
+        final requiresConfirmation =
+            authResponse['access_token'] == null &&
+            authResponse['session'] == null &&
+            authUser['email_confirmed_at'] == null;
+        return UserCreationResult(
+          requiresEmailConfirmation: requiresConfirmation,
+        );
       } else {
-        throw Exception(authResponse['msg'] ?? 'No se pudo registrar al usuario en Supabase.');
+        final message =
+            authResponse['msg'] ??
+            authResponse['message'] ??
+            authResponse['error_description'] ??
+            authResponse['error'] ??
+            'No se pudo registrar al usuario en Supabase.';
+        throw Exception(_translateSignupError(message.toString()));
       }
     } catch (e) {
       debugPrint('Error adding user: $e');
@@ -78,9 +127,34 @@ class UsersProvider with ChangeNotifier {
     }
   }
 
+  static String _translateSignupError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('already registered') ||
+        normalized.contains('already exists') ||
+        normalized.contains('user_already_exists')) {
+      return 'Ese correo ya tiene una cuenta. Si fue eliminada de la lista, '
+          'reactívala desde Supabase Auth o usa otro correo.';
+    }
+    if (normalized.contains('password') &&
+        (normalized.contains('short') || normalized.contains('characters'))) {
+      return 'La contraseña no cumple la longitud mínima requerida.';
+    }
+    if (normalized.contains('email') && normalized.contains('invalid')) {
+      return 'El correo electrónico no es válido.';
+    }
+    if (normalized.contains('rate') || normalized.contains('too many')) {
+      return 'Se hicieron demasiados intentos. Espera unos minutos.';
+    }
+    return message;
+  }
+
   Future<void> updateUser(UserModel user) async {
     final data = user.toMap();
     data.remove('id');
+    // El correo de acceso pertenece a Supabase Auth. Cambiar solo la copia del
+    // perfil deja la pantalla mostrando un correo que no sirve para iniciar
+    // sesión, por eso no se modifica desde esta operación.
+    data.remove('email');
     try {
       await _supabase.from('user_profiles').update(data).eq('id', user.id!);
       await fetchUsers();
@@ -109,7 +183,10 @@ class UsersProvider with ChangeNotifier {
 
   Future<void> toggleUserStatus(String id, bool currentStatus) async {
     try {
-      await _supabase.from('user_profiles').update({'is_active': !currentStatus}).eq('id', id);
+      await _supabase
+          .from('user_profiles')
+          .update({'is_active': !currentStatus})
+          .eq('id', id);
       await fetchUsers();
     } catch (e) {
       debugPrint('Error toggling user status: $e');

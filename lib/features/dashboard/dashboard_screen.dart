@@ -147,14 +147,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ).format(parsedDate);
 
     // Detalle: usuario y destino/proyecto (HU25)
-    final userName = context
+    final userName =
+        context
             .read<UsersProvider>()
             .users
             .where((u) => u.id == mov.userId)
             .map((u) => u.name)
             .firstOrNull ??
         '';
-    final projectName = context
+    final projectName =
+        context
             .read<ProjectsProvider>()
             .projects
             .where((p) => p.id == mov.projectId)
@@ -544,9 +546,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required bool isDark,
     String? Function(String?)? validator,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       validator: validator,
       style: TextStyle(
         color: isDark ? Colors.white : Colors.black87,
@@ -749,9 +753,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _buildProfileFormField(
                           controller: emailController,
                           label: 'Correo electrónico',
-                          hint: 'correo@gmail.com',
+                          hint: 'El administrador gestiona el correo de acceso',
                           icon: Icons.email_outlined,
                           isDark: isDark,
+                          enabled: false,
                           validator: (val) {
                             if (val == null || val.isEmpty) return 'Requerido';
                             if (!val.contains('@')) return 'Correo inválido';
@@ -795,20 +800,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   if (formKey.currentState!.validate()) {
-                                    await context
-                                        .read<AuthProvider>()
-                                        .updateProfile(
-                                          nameController.text.trim(),
-                                          emailController.text
-                                              .trim()
-                                              .toLowerCase(),
+                                    try {
+                                      await context
+                                          .read<AuthProvider>()
+                                          .updateProfile(
+                                            nameController.text.trim(),
+                                          );
+                                      if (context.mounted) {
+                                        CustomSnackBar.showSuccess(
+                                          context,
+                                          'Perfil actualizado',
                                         );
-                                    if (context.mounted) {
-                                      CustomSnackBar.showSuccess(
-                                        context,
-                                        'Perfil actualizado',
-                                      );
-                                      Navigator.pop(context);
+                                        Navigator.pop(context);
+                                      }
+                                    } catch (_) {
+                                      if (context.mounted) {
+                                        CustomSnackBar.showError(
+                                          context,
+                                          'No se pudo actualizar el perfil',
+                                        );
+                                      }
                                     }
                                   }
                                 },
@@ -856,8 +867,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final themeProvider = context.watch<ThemeProvider>();
     final categoriesProvider = context.watch<CategoriesProvider>();
     final projectsProvider = context.watch<ProjectsProvider>();
-    final activeProjects =
-        projectsProvider.projects.where((p) => p.status == 'active').length;
+    final activeProjects = projectsProvider.projects
+        .where((p) => p.status == 'active')
+        .length;
 
     final products = productsProvider.products;
     final activeProductsList = products.where((p) => p.isActive).toList();
@@ -1442,7 +1454,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildProjectsReportsCard(BuildContext context, int activeProjects) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Proyectos Activos (Verde Mercedes)
     const projectsColor = Color(0xFF10B981);
 
@@ -1470,7 +1482,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: projectsColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.business_center_outlined, color: projectsColor, size: 24),
+                  child: const Icon(
+                    Icons.business_center_outlined,
+                    color: projectsColor,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1488,12 +1504,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 2),
                       Text(
                         '$activeProjects proyectos en ejecución',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 22),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey,
+                  size: 22,
+                ),
               ],
             ),
           ),
@@ -1518,7 +1541,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: reportsColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.assessment_outlined, color: reportsColor, size: 24),
+                  child: const Icon(
+                    Icons.assessment_outlined,
+                    color: reportsColor,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1541,7 +1568,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 22),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey,
+                  size: 22,
+                ),
               ],
             ),
           ),

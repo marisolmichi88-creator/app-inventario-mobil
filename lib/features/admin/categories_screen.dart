@@ -323,7 +323,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     adminEditButton(onPressed: () => _showCategoryForm(cat)),
                     adminStatusSwitch(
                       value: cat.isActive,
-                      onChanged: (val) => provider.toggleCategoryStatus(cat.id!, !val),
+                      onChanged: (val) =>
+                          provider.toggleCategoryStatus(cat.id!, val),
                     ),
                   ],
                 ),

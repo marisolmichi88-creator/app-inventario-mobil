@@ -63,9 +63,17 @@ class CategoriesProvider with ChangeNotifier {
     }
   }
 
-  Future<void> toggleCategoryStatus(String id, bool currentStatus) async {
-    // La tabla de categorias original no tenia is_active en Supabase,
-    // pero si lo agregamos, aqui se actualizaria.
+  Future<void> toggleCategoryStatus(String id, bool isActive) async {
+    try {
+      await _supabase
+          .from('categories')
+          .update({'is_active': isActive})
+          .eq('id', id);
+      await fetchCategories();
+    } catch (e) {
+      debugPrint('Error toggling category status: $e');
+      rethrow;
+    }
   }
 
   /// Elimina una categoría. Devuelve false si hay productos que la usan

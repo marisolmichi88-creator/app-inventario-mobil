@@ -6,7 +6,11 @@ Color adminScaffoldBackground(BuildContext context) {
   return isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
 }
 
-AppBar adminAppBar(BuildContext context, String title, {List<Widget>? actions}) {
+AppBar adminAppBar(
+  BuildContext context,
+  String title, {
+  List<Widget>? actions,
+}) {
   return AppBar(
     backgroundColor: Colors.transparent,
     elevation: 0,
@@ -57,7 +61,9 @@ class AdminEmptyState extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 48,
-                color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                color: isDark
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF1959AD),
               ),
             ),
             const SizedBox(height: 20),
@@ -163,7 +169,9 @@ class AdminListCard extends StatelessWidget {
                             subtitle,
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -177,10 +185,7 @@ class AdminListCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                if (footer != null) ...[
-                  const SizedBox(height: 12),
-                  footer!,
-                ],
+                if (footer != null) ...[const SizedBox(height: 12), footer!],
               ],
             ),
           ),
@@ -201,7 +206,7 @@ Widget adminEditButton({required VoidCallback onPressed}) {
 
 Widget adminStatusSwitch({
   required bool value,
-  required ValueChanged<bool> onChanged,
+  required ValueChanged<bool>? onChanged,
 }) {
   return Transform.scale(
     scale: 0.85,
@@ -272,8 +277,11 @@ Future<bool> showAdminDeleteConfirm(
             color: const Color(0xFFEF4444).withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFEF4444), size: 28),
+          child: const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFEF4444),
+            size: 28,
+          ),
         ),
         title: Text(
           title,
@@ -314,13 +322,16 @@ Future<bool> showAdminDeleteConfirm(
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     'Cancelar',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                      color: isDark
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade700,
                     ),
                   ),
                 ),
@@ -335,13 +346,16 @@ Future<bool> showAdminDeleteConfirm(
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     confirmLabel,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ),

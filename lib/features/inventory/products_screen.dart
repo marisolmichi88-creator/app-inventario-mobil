@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
@@ -8,7 +7,6 @@ import '../../data/providers/movements_provider.dart';
 import '../../data/providers/warehouses_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/movement_model.dart';
-import '../../data/initial_data.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../core/widgets/custom_snackbar.dart';
@@ -47,219 +45,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       // Para el stock por almacén calculado desde los movimientos (HU17).
       await movementsProvider.fetchMovements();
       await warehousesProvider.fetchWarehouses();
-
-      // Ejecutar reparación/carga inicial de almacenes y monedas
-      _runInitialDataRepair();
     });
-  }
-
-  Future<void> _runInitialDataRepair() async {
-    final productsProvider = context.read<ProductsProvider>();
-    final movementsProvider = context.read<MovementsProvider>();
-    final warehousesProvider = context.read<WarehousesProvider>();
-    final authProvider = context.read<AuthProvider>();
-
-    // Corregir automáticamente cualquier stock duplicado por migraciones previas
-    await _fixDoubledStocks();
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      const key = 'initial_data_repair_run_v6';
-      final alreadyRun = prefs.getBool(key) ?? false;
-      if (alreadyRun) return;
-
-      debugPrint(
-        'Iniciando reparación y migración de datos iniciales en la app (modo silencioso)...',
-      );
-
-      final products = productsProvider.products;
-      final movements = movementsProvider.movements;
-      final warehouses = warehousesProvider.warehouses;
-      final currentUser = authProvider.currentUser;
-
-      if (products.isEmpty || warehouses.isEmpty) {
-        debugPrint('Reparación omitida: productos o almacenes vacíos.');
-        return;
-      }
-
-      final userProfileId = currentUser?.id;
-      if (userProfileId == null) {
-        debugPrint('Reparación omitida: no hay un usuario autenticado.');
-        return;
-      }
-
-      String normalize(String text) {
-        return text
-            .trim()
-            .toLowerCase()
-            .replaceAll('á', 'a')
-            .replaceAll('é', 'e')
-            .replaceAll('í', 'i')
-            .replaceAll('ó', 'o')
-            .replaceAll('ú', 'u')
-            .replaceAll(RegExp(r'\s+'), ' ');
-      }
-
-      final Map<String, String> warehouseMap = {};
-      for (final w in warehouses) {
-        warehouseMap[normalize(w.name)] = w.id!;
-      }
-
-      int currenciesUpdated = 0;
-      int movementsCreated = 0;
-
-      for (final entry in initialProductData.entries) {
-        final code = entry.key;
-        final data = entry.value;
-
-        final prodList = products.where((p) => p.code == code).toList();
-        if (prodList.isEmpty) continue;
-        final prod = prodList.first;
-
-        // A. Corrección de Moneda y Almacén
-        final targetCurrency = data['currency'] ?? 'PEN';
-        final rawWarehouseName = data['warehouse'] ?? '';
-        final warehouseId = warehouseMap[normalize(rawWarehouseName)];
-
-        if (prod.currency != targetCurrency ||
-            prod.warehouseId != warehouseId) {
-          final updatedProduct = ProductModel(
-            id: prod.id,
-            code: prod.code,
-            internalQr: prod.internalQr,
-            serialNumber: prod.serialNumber,
-            name: prod.name,
-            subtype: prod.subtype,
-            brand: prod.brand,
-            model: prod.model,
-            attributes: prod.attributes,
-            categoryId: prod.categoryId,
-            warehouseId: warehouseId,
-            stock: prod.stock,
-            minStock: prod.minStock,
-            unit: prod.unit,
-            price: prod.price,
-            currency: targetCurrency,
-            isActive: prod.isActive,
-          );
-          await productsProvider.updateProduct(updatedProduct);
-          currenciesUpdated++;
-        }
-
-        // B. Registro de Movimiento Inicial
-        final int stockQuantity = prod.stock;
-        if (stockQuantity > 0) {
-          final rawWarehouseName = data['warehouse'] ?? '';
-          final warehouseId = warehouseMap[normalize(rawWarehouseName)];
-
-          if (warehouseId == null) {
-            debugPrint(
-              'Error: Almacén $rawWarehouseName no encontrado en BD para $code',
-            );
-            continue;
-          }
-
-          final hasMovement = movements.any(
-            (m) =>
-                m.productId == prod.id &&
-                m.warehouseId == warehouseId &&
-                m.type == 'IN',
-          );
-
-          if (!hasMovement) {
-            final dateStr = data['date']?.isNotEmpty == true
-                ? data['date']!
-                : DateTime.now().toIso8601String().split('T')[0];
-
-            final newMovement = MovementModel(
-              productId: prod.id!,
-              warehouseId: warehouseId,
-              projectId: null,
-              userId: userProfileId,
-              type: 'IN',
-              quantity: stockQuantity,
-              date: dateStr,
-              notes: 'Carga inicial migrada desde Excel',
-            );
-
-            // Silencioso, sin enviar notificaciones masivas push al celular, y sin duplicar stock
-            await movementsProvider.registerMovement(
-              newMovement,
-              showNotification: false,
-              updateProductStock: false,
-            );
-            movementsCreated++;
-          }
-        }
-      }
-
-      debugPrint(
-        'Reparación finalizada silenciosamente. Monedas actualizadas: $currenciesUpdated. Movimientos creados: $movementsCreated.',
-      );
-      await prefs.setBool(key, true);
-    } catch (e) {
-      debugPrint('Error en reparación de datos iniciales: $e');
-    }
-  }
-
-  Future<void> _fixDoubledStocks() async {
-    final productsProvider = context.read<ProductsProvider>();
-    final movementsProvider = context.read<MovementsProvider>();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      const fixKey = 'fix_doubled_stocks_run_v3';
-      final alreadyRun = prefs.getBool(fixKey) ?? false;
-      if (alreadyRun) return;
-
-      debugPrint('Iniciando corrección de stocks duplicados...');
-      final products = productsProvider.products;
-      final movements = movementsProvider.movements;
-
-      int correctedCount = 0;
-      for (final prod in products) {
-        final initialMovs = movements
-            .where(
-              (m) =>
-                  m.productId == prod.id &&
-                  m.type == 'IN' &&
-                  m.notes == 'Carga inicial migrada desde Excel',
-            )
-            .toList();
-
-        if (initialMovs.isNotEmpty) {
-          final correctStock = initialMovs.first.quantity;
-          if (prod.stock != correctStock) {
-            final updatedProduct = ProductModel(
-              id: prod.id,
-              code: prod.code,
-              internalQr: prod.internalQr,
-              serialNumber: prod.serialNumber,
-              name: prod.name,
-              subtype: prod.subtype,
-              brand: prod.brand,
-              model: prod.model,
-              attributes: prod.attributes,
-              categoryId: prod.categoryId,
-              warehouseId: prod.warehouseId,
-              stock: correctStock,
-              minStock: prod.minStock,
-              unit: prod.unit,
-              price: prod.price,
-              currency: prod.currency,
-              isActive: prod.isActive,
-            );
-            await productsProvider.updateProduct(updatedProduct);
-            correctedCount++;
-          }
-        }
-      }
-      debugPrint(
-        'Corrección de stocks finalizada. Productos corregidos: $correctedCount',
-      );
-      await prefs.setBool(fixKey, true);
-    } catch (e) {
-      debugPrint('Error al corregir stocks duplicados: $e');
-    }
   }
 
   /// Stock por almacén calculado al vuelo desde los movimientos (HU17):
@@ -1130,6 +916,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           await movementsProvider
                                               .registerMovement(
                                                 initialMovement,
+                                                showNotification: false,
+                                                updateProductStock: false,
                                               );
                                         }
                                       }

@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/admin_ui.dart';
+import '../../core/widgets/custom_snackbar.dart';
 import '../../data/providers/users_provider.dart';
 import '../../data/models/user_model.dart';
+import '../auth/auth_provider.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -28,6 +30,8 @@ class _UsersScreenState extends State<UsersScreen> {
     required IconData icon,
     required bool isDark,
     bool enabled = true,
+    bool isEmail = false,
+    bool isPassword = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -35,6 +39,13 @@ class _UsersScreenState extends State<UsersScreen> {
       validator: (val) {
         if (!enabled) return null;
         if (val == null || val.isEmpty) return 'Requerido';
+        if (isEmail &&
+            !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(val.trim())) {
+          return 'Correo inválido';
+        }
+        if (isPassword && val.length < 8) {
+          return 'Usa al menos 8 caracteres';
+        }
         return null;
       },
       style: TextStyle(
@@ -50,22 +61,33 @@ class _UsersScreenState extends State<UsersScreen> {
         ),
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        prefixIcon: Icon(icon, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+        prefixIcon: Icon(
+          icon,
+          color: isDark ? Colors.grey.shade400 : Colors.black87,
+          size: 20,
+        ),
         filled: true,
         fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         floatingLabelBehavior: FloatingLabelBehavior.always,
       ),
     );
@@ -75,12 +97,15 @@ class _UsersScreenState extends State<UsersScreen> {
     final isEditing = user != null;
     final nameController = TextEditingController(text: user?.name ?? '');
     final emailController = TextEditingController(text: user?.email ?? '');
-    final passwordController = TextEditingController(text: user?.password ?? '');
+    final passwordController = TextEditingController(
+      text: user?.password ?? '',
+    );
     String? selectedRole = user?.role;
     if (selectedRole != null && selectedRole != 'admin') {
       selectedRole = 'operador';
     }
     final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -88,13 +113,15 @@ class _UsersScreenState extends State<UsersScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        
+
         return StatefulBuilder(
           builder: (context, setState) {
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -152,23 +179,29 @@ class _UsersScreenState extends State<UsersScreen> {
                         hint: 'correo@gmail.com',
                         icon: Icons.email_outlined,
                         isDark: isDark,
+                        enabled: !isEditing,
+                        isEmail: true,
                       ),
                       const SizedBox(height: 16),
                       if (!isEditing) ...[
                         _buildFormField(
                           controller: passwordController,
                           label: 'Contraseña',
-                          hint: 'Mínimo 6 caracteres',
+                          hint: 'Mínimo 8 caracteres',
                           icon: Icons.lock_outline_rounded,
                           isDark: isDark,
+                          isPassword: true,
                         ),
                         const SizedBox(height: 16),
                       ],
                       DropdownButtonFormField<String>(
                         initialValue: selectedRole,
                         hint: const Text('Seleccionar rol'),
-                        validator: (val) => val == null ? 'Por favor selecciona un rol' : null,
-                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        validator: (val) =>
+                            val == null ? 'Por favor selecciona un rol' : null,
+                        dropdownColor: isDark
+                            ? const Color(0xFF1E293B)
+                            : Colors.white,
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                           fontSize: 15,
@@ -177,30 +210,60 @@ class _UsersScreenState extends State<UsersScreen> {
                         decoration: InputDecoration(
                           labelText: 'Rol',
                           labelStyle: TextStyle(
-                            color: isDark ? Colors.grey.shade400 : Colors.black54,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.black54,
                             fontSize: 14,
                           ),
-                          prefixIcon: Icon(Icons.badge_outlined, color: isDark ? Colors.grey.shade400 : Colors.black87, size: 20),
+                          prefixIcon: Icon(
+                            Icons.badge_outlined,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.black87,
+                            size: 20,
+                          ),
                           filled: true,
-                          fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          fillColor: isDark
+                              ? const Color(0xFF1E293B)
+                              : Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF3B82F6),
+                              width: 2,
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'admin', child: Text('Administrador')),
-                          DropdownMenuItem(value: 'operador', child: Text('Trabajador')),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Administrador'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'operador',
+                            child: Text('Trabajador'),
+                          ),
                         ],
                         onChanged: (val) {
                           setState(() {
@@ -217,107 +280,129 @@ class _UsersScreenState extends State<UsersScreen> {
                             child: TextButton(
                               onPressed: () => Navigator.pop(context),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               child: Text(
                                 'Cancelar',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                                  color: isDark
+                                      ? const Color(0xFF60A5FA)
+                                      : const Color(0xFF1959AD),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (formKey.currentState!.validate()) {
-                                    try {
-                                      final newUser = UserModel(
-                                        id: user?.id,
-                                        authUserId: user?.authUserId,
-                                        name: nameController.text.trim(),
-                                        email: emailController.text.trim(),
-                                        password: passwordController.text.trim(),
-                                        role: selectedRole!,
-                                        isActive: user?.isActive ?? true,
-                                      );
-                                      
-                                      if (isEditing) {
-                                        await context.read<UsersProvider>().updateUser(newUser);
-                                      } else {
-                                        await context.read<UsersProvider>().addUser(newUser);
+                            child: ElevatedButton.icon(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      if (formKey.currentState!.validate()) {
+                                        setState(() => isSubmitting = true);
+                                        try {
+                                          final newUser = UserModel(
+                                            id: user?.id,
+                                            authUserId: user?.authUserId,
+                                            name: nameController.text.trim(),
+                                            email: emailController.text.trim(),
+                                            password: passwordController.text
+                                                .trim(),
+                                            role: selectedRole!,
+                                            isActive: user?.isActive ?? true,
+                                          );
+
+                                          String successMessage;
+                                          if (isEditing) {
+                                            await context
+                                                .read<UsersProvider>()
+                                                .updateUser(newUser);
+                                            successMessage =
+                                                'Usuario actualizado';
+                                          } else {
+                                            final result = await context
+                                                .read<UsersProvider>()
+                                                .addUser(newUser);
+                                            successMessage =
+                                                result.requiresEmailConfirmation
+                                                ? 'Cuenta creada. El usuario debe confirmar el correo antes de ingresar.'
+                                                : 'Cuenta creada y lista para ingresar.';
+                                          }
+                                          if (context.mounted) {
+                                            setState(
+                                              () => isSubmitting = false,
+                                            );
+                                            CustomSnackBar.showSuccess(
+                                              context,
+                                              successMessage,
+                                            );
+                                            Navigator.pop(context);
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            setState(
+                                              () => isSubmitting = false,
+                                            );
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  e.toString().replaceAll(
+                                                    'Exception: ',
+                                                    '',
+                                                  ),
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        }
                                       }
-                                      if (context.mounted) Navigator.pop(context);
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(e.toString().replaceAll('Exception: ', '')),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  }
-                                },
+                                    },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-                                foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                backgroundColor: isDark
+                                    ? const Color(0xFF60A5FA)
+                                    : const Color(0xFF1959AD),
+                                foregroundColor: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 elevation: 0,
                               ),
-                              icon: const Icon(Icons.save_rounded, size: 20),
-                              label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              icon: isSubmitting
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_rounded, size: 20),
+                              label: Text(
+                                isSubmitting ? 'Guardando...' : 'Guardar',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      if (isEditing) ...[
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Eliminar Usuario'),
-                                  content: const Text('¿Estás seguro de que deseas eliminar este usuario?'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
-                                  ],
-                                ),
-                              );
-                              
-                              if (confirm == true) {
-                                if (!context.mounted) return;
-                                try {
-                                  await context.read<UsersProvider>().deleteUser(user!.id!);
-                                  if (context.mounted) Navigator.pop(context);
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-                                  }
-                                }
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Eliminar Usuario', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -332,6 +417,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = context.watch<AuthProvider>().currentUser?.id;
     return Scaffold(
       backgroundColor: adminScaffoldBackground(context),
       appBar: adminAppBar(context, 'Gestión de Usuarios'),
@@ -362,24 +448,31 @@ class _UsersScreenState extends State<UsersScreen> {
               final isAdmin = user.role == 'admin';
 
               return AdminListCard(
-                icon: isAdmin ? Icons.admin_panel_settings_outlined : Icons.person_outline,
+                icon: isAdmin
+                    ? Icons.admin_panel_settings_outlined
+                    : Icons.person_outline,
                 iconColor: user.isActive
-                    ? (isAdmin ? const Color(0xFF8B5CF6) : const Color(0xFF3B82F6))
+                    ? (isAdmin
+                          ? const Color(0xFF8B5CF6)
+                          : const Color(0xFF3B82F6))
                     : const Color(0xFFEF4444),
                 iconBackground: user.isActive
                     ? (isAdmin
-                        ? const Color(0xFF8B5CF6).withValues(alpha: 0.12)
-                        : const Color(0xFF3B82F6).withValues(alpha: 0.12))
+                          ? const Color(0xFF8B5CF6).withValues(alpha: 0.12)
+                          : const Color(0xFF3B82F6).withValues(alpha: 0.12))
                     : const Color(0xFFEF4444).withValues(alpha: 0.12),
                 title: user.name,
-                subtitle: '${user.email} · ${isAdmin ? 'Administrador' : 'Trabajador'}',
+                subtitle:
+                    '${user.email} · ${isAdmin ? 'Administrador' : 'Trabajador'}',
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     adminEditButton(onPressed: () => _showUserForm(user)),
                     adminStatusSwitch(
                       value: user.isActive,
-                      onChanged: (val) => provider.toggleUserStatus(user.id!, !val),
+                      onChanged: user.id == currentUserId
+                          ? null
+                          : (val) => provider.toggleUserStatus(user.id!, !val),
                     ),
                   ],
                 ),

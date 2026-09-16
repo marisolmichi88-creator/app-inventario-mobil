@@ -52,7 +52,7 @@ declare
   t text;
   tablas text[] := array[
     'products', 'movements', 'warehouses', 'categories',
-    'projects', 'user_profiles', 'product_warehouses'
+    'projects', 'product_warehouses'
   ];
 begin
   foreach t in array tablas loop
@@ -78,6 +78,65 @@ begin
 
     raise notice 'RLS activado en %', t;
   end loop;
+end $$;
+
+-- user_profiles necesita políticas por rol. No debe recibir la política
+-- genérica "authenticated = acceso total", porque permitiría que un operador
+-- se cambie a admin mediante la API. Estas reglas también están en
+-- supabase_account_security.sql, junto con el trigger seguro de altas.
+create or replace function public.current_user_is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.user_profiles p
+     where p.auth_user_id = auth.uid()
+       and p.role = 'admin'
+       and p.is_active is true
+  );
+$$;
+
+revoke all on function public.current_user_is_admin() from public, anon;
+grant execute on function public.current_user_is_admin() to authenticated;
+
+do $$
+declare
+  policy_record record;
+begin
+  if exists (select 1 from information_schema.tables
+             where table_schema = 'public'
+               and table_name = 'user_profiles') then
+    alter table public.user_profiles enable row level security;
+
+    for policy_record in
+      select policyname from pg_policies
+       where schemaname = 'public' and tablename = 'user_profiles'
+    loop
+      execute format(
+        'drop policy if exists %I on public.user_profiles',
+        policy_record.policyname
+      );
+    end loop;
+
+    create policy user_profiles_select_self_or_admin
+      on public.user_profiles for select to authenticated
+      using (auth_user_id = auth.uid() or public.current_user_is_admin());
+    create policy user_profiles_insert_admin
+      on public.user_profiles for insert to authenticated
+      with check (public.current_user_is_admin());
+    create policy user_profiles_update_admin
+      on public.user_profiles for update to authenticated
+      using (public.current_user_is_admin())
+      with check (public.current_user_is_admin());
+    create policy user_profiles_delete_admin
+      on public.user_profiles for delete to authenticated
+      using (public.current_user_is_admin());
+
+    revoke all on public.user_profiles from anon;
+  end if;
 end $$;
 
 -- movement_audit ya tiene sus políticas propias (insertar y leer, nunca

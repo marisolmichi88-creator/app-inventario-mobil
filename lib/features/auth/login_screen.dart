@@ -48,20 +48,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: SvgPicture.asset(
-                          'assets/icon.svg', 
-                          height: 120, 
-                          width: 120, 
+                          'assets/icon.svg',
+                          height: 120,
+                          width: 120,
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   const Text(
                     'Proenergim stock',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -82,9 +86,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.redAccent),
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.redAccent,
+                          ),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.white))),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -97,13 +109,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Por favor colocar su correo electrónico';
-                      if (!value.contains('@')) return 'Por favor colocar un correo electrónico válido';
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor colocar su correo electrónico';
+                      }
+                      if (!RegExp(
+                        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                      ).hasMatch(value.trim())) {
+                        return 'Por favor colocar un correo electrónico válido';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -122,7 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Por favor ingresar contraseña';
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingresar contraseña';
+                      }
                       return null;
                     },
                   ),
@@ -146,13 +166,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   authProvider.isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : ElevatedButton(
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
-                              setState(() { _errorMessage = null; });
+                              setState(() {
+                                _errorMessage = null;
+                              });
                               try {
                                 final success = await authProvider.login(
                                   _emailController.text.trim().toLowerCase(),
@@ -161,18 +183,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 if (!mounted) return;
                                 if (!success) {
                                   setState(() {
-                                    _errorMessage = 'Credenciales incorrectas';
+                                    _errorMessage =
+                                        authProvider.lastLoginError ??
+                                        'No se pudo iniciar sesión.';
                                   });
                                 }
                               } catch (e) {
                                 if (!mounted) return;
                                 setState(() {
-                                  _errorMessage = e.toString().replaceAll('Exception: ', '');
+                                  _errorMessage = e.toString().replaceAll(
+                                    'Exception: ',
+                                    '',
+                                  );
                                 });
                               }
                             }
                           },
-                          child: const Text('Ingresar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Ingresar',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                 ],
               ),
