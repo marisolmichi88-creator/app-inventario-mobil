@@ -21,12 +21,15 @@ class AuthProvider with ChangeNotifier {
       if (session != null) {
         final authUser = session.user;
 
-        // Cargar perfil del usuario desde Supabase
-        final profile = await Supabase.instance.client
+        // Cargar perfil del usuario desde Supabase. Se lee como lista porque
+        // maybeSingle() lanza el 406 de PostgREST cuando no hay filas, y una
+        // cuenta sin perfil es justo el caso que hay que distinguir.
+        final profiles = await Supabase.instance.client
             .from('user_profiles')
             .select()
             .eq('auth_user_id', authUser.id)
-            .maybeSingle();
+            .limit(1);
+        final profile = profiles.isEmpty ? null : profiles.first;
 
         if (profile != null && profile['is_active'] == true) {
           _currentUser = UserModel(
@@ -61,12 +64,15 @@ class AuthProvider with ChangeNotifier {
 
       final authUser = res.user;
       if (authUser != null) {
-        // Fetch profile
-        final profile = await Supabase.instance.client
+        // Fetch profile. Como arriba: lista en vez de maybeSingle(), para que
+        // una cuenta sin perfil llegue al mensaje que explica qué pasa y no al
+        // error genérico de PostgREST.
+        final profiles = await Supabase.instance.client
             .from('user_profiles')
             .select()
             .eq('auth_user_id', authUser.id)
-            .maybeSingle();
+            .limit(1);
+        final profile = profiles.isEmpty ? null : profiles.first;
 
         if (profile != null && profile['is_active'] == true) {
           _currentUser = UserModel(

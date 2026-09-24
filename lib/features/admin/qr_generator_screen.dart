@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
@@ -7,6 +8,7 @@ import '../../core/widgets/admin_ui.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../core/services/pdf_service.dart';
+import '../scanner/scanner_screen.dart';
 
 class QrGeneratorScreen extends StatefulWidget {
   const QrGeneratorScreen({super.key});
@@ -49,6 +51,157 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
     });
   }
 
+  /// Pregunta de dónde sale el código del producto nuevo. Son los dos únicos
+  /// orígenes posibles: uno que inventamos nosotros y otro que ya viene impreso
+  /// en un artículo que no es de la empresa.
+  void _showNewCodeOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final siguiente = ProductsProvider.nextInternalCode(
+      context.read<ProductsProvider>().products,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).padding.bottom + 24,
+          left: 24,
+          right: 24,
+          top: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              'Código nuevo',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Theme.of(sheetContext).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '¿De dónde sale el código de este producto?',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            _codeOriginTile(
+              isDark: isDark,
+              icon: Icons.auto_awesome_rounded,
+              color: const Color(0xFF7C3AED),
+              title: 'Código interno',
+              subtitle: 'Lo generamos nosotros, siguiendo el correlativo.\n'
+                  'El siguiente sería $siguiente',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.go(
+                  '/products?interno=${Uri.encodeQueryComponent(siguiente)}',
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _codeOriginTile(
+              isDark: isDark,
+              icon: Icons.qr_code_scanner_rounded,
+              color: const Color(0xFF0891B2),
+              title: 'Por medio de escáner',
+              subtitle: 'El producto no es de la empresa y ya trae su código '
+                  'impreso. Se lee con la cámara.',
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final code = await Navigator.of(context).push<String>(
+                  MaterialPageRoute(
+                    builder: (_) => const ScannerScreen(returnCodeOnly: true),
+                  ),
+                );
+                if (code == null || !mounted) return;
+                if (!context.mounted) return;
+                context.go(
+                  '/products?code=${Uri.encodeQueryComponent(code)}',
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _codeOriginTile({
+    required bool isDark,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -59,6 +212,16 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
         context,
         'Generador de Etiquetas',
         actions: [
+          IconButton(
+            tooltip: 'Nuevo código',
+            onPressed: _showNewCodeOptions,
+            icon: Icon(
+              Icons.add_circle_outline_rounded,
+              color: isDark
+                  ? const Color(0xFF60A5FA)
+                  : const Color(0xFF1959AD),
+            ),
+          ),
           Consumer<ProductsProvider>(
             builder: (context, provider, child) {
               return Padding(

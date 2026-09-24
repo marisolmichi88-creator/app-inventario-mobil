@@ -43,7 +43,54 @@ class UsersProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Traduce el fallo de la Edge Function a la frase que devolvió ella misma.
+  static String _functionErrorMessage(FunctionException e) {
+    final details = e.details;
+    if (details is Map && details['error'] != null) {
+      return details['error'].toString();
+    }
+    if (details is String && details.isNotEmpty) return details;
+    return 'La gestión de usuarios falló (HTTP ${e.status}).';
+  }
+
+  static Exception _functionMissing(String operacion) {
+    return Exception(
+      'Falta desplegar la función "admin-users" en Supabase. '
+      'Sin ella no se puede $operacion, porque esa operación necesita una '
+      'llave que no puede vivir dentro de la app.',
+    );
+  }
+
   Future<UserCreationResult> addUser(UserModel user) async {
+    try {
+      await _supabase.functions.invoke(
+        'admin-users',
+        body: {
+          'action': 'create',
+          'email': user.email.trim().toLowerCase(),
+          'password': user.password,
+          'name': user.name,
+          'role': user.role,
+        },
+      );
+      await fetchUsers();
+      // La función crea la cuenta ya confirmada, así que el usuario entra de
+      // inmediato y no hay ningún correo que esperar.
+      return const UserCreationResult(requiresEmailConfirmation: false);
+    } on FunctionException catch (e) {
+      if (e.status == 404) {
+        // Todavía no está desplegada: se usa el camino anterior para no dejar
+        // al panel sin poder dar de alta a nadie.
+        return _addUserViaPublicSignup(user);
+      }
+      throw Exception(_functionErrorMessage(e));
+    }
+  }
+
+  /// Alta por el endpoint público de registro. Es el camino previo a la Edge
+  /// Function y se conserva solo como respaldo: obliga a dejar abierta el alta
+  /// de usuarios en Supabase y no puede confirmar el correo por su cuenta.
+  Future<UserCreationResult> _addUserViaPublicSignup(UserModel user) async {
     try {
       final url = Uri.parse(
         'https://xzegdfhcxypnffurfvwc.supabase.co/auth/v1/signup',
@@ -94,34 +141,38 @@ class UsersProvider with ChangeNotifier {
 
         // El trigger crea un perfil inactivo y sin privilegios. La sesión del
         // administrador es la única que puede activarlo y asignarle el rol.
-        Map<String, dynamic>? profile;
+        //
+        // Aquí no se usa maybeSingle(): en postgrest 2.8.0 no devuelve null con
+        // cero filas, sino que lanza el 406 PGRST116 que responde PostgREST. Una
+        // lista vacía es la misma pregunta sin depender de ese comportamiento.
+        List<Map<String, dynamic>> updated;
         try {
-          profile = await _supabase
+          updated = await _supabase
               .from('user_profiles')
               .update(data)
               .eq('auth_user_id', authUserId)
-              .select()
-              .maybeSingle();
+              .select();
         } on PostgrestException catch (e) {
           throw Exception(_describePostgrest(e, 'activar el perfil'));
         }
+        Map<String, dynamic>? profile = updated.isEmpty ? null : updated.first;
 
         if (profile == null) {
           // Un UPDATE bloqueado por RLS no lanza error: afecta cero filas. Hay
           // que distinguir ese caso de que el perfil todavía no exista, porque
           // el mensaje para el administrador es completamente distinto.
-          Map<String, dynamic>? existing;
+          List<Map<String, dynamic>> existing;
           try {
             existing = await _supabase
                 .from('user_profiles')
                 .select()
                 .eq('auth_user_id', authUserId)
-                .maybeSingle();
+                .limit(1);
           } on PostgrestException catch (_) {
-            existing = null;
+            existing = const [];
           }
 
-          if (existing != null) {
+          if (existing.isNotEmpty) {
             throw Exception(
               'La cuenta se creó en Auth, pero la base de datos no dejó '
               'activar su perfil. Tu sesión no está pasando el control de '
@@ -272,11 +323,38 @@ class UsersProvider with ChangeNotifier {
   }
 
   Future<void> updateUser(UserModel user) async {
+    try {
+      await _supabase.functions.invoke(
+        'admin-users',
+        body: {
+          'action': 'update',
+          'id': user.id,
+          'name': user.name,
+          'role': user.role,
+          'email': user.email.trim().toLowerCase(),
+          'is_active': user.isActive,
+        },
+      );
+      await fetchUsers();
+    } on FunctionException catch (e) {
+      if (e.status != 404) throw Exception(_functionErrorMessage(e));
+
+      // Sin la función desplegada solo se puede tocar la copia del perfil. El
+      // correo de acceso vive en Auth, así que cambiarlo aquí dejaría la
+      // pantalla mostrando uno con el que nadie puede iniciar sesión.
+      final anterior = _users.where((u) => u.id == user.id).firstOrNull;
+      final correoCambio =
+          anterior != null &&
+          anterior.email.toLowerCase() != user.email.trim().toLowerCase();
+      if (correoCambio) throw _functionMissing('cambiar el correo');
+
+      await _updateProfileOnly(user);
+    }
+  }
+
+  Future<void> _updateProfileOnly(UserModel user) async {
     final data = user.toMap();
     data.remove('id');
-    // El correo de acceso pertenece a Supabase Auth. Cambiar solo la copia del
-    // perfil deja la pantalla mostrando un correo que no sirve para iniciar
-    // sesión, por eso no se modifica desde esta operación.
     data.remove('email');
     try {
       await _supabase.from('user_profiles').update(data).eq('id', user.id!);
@@ -294,13 +372,26 @@ class UsersProvider with ChangeNotifier {
     }
   }
 
-  // Aquí vivía deleteUser(). Borraba la fila de user_profiles pero no podía
-  // tocar la cuenta de Supabase Auth, que necesita la service_role key y por
-  // eso no puede vivir dentro del APK. Cada borrado dejaba una cuenta de acceso
-  // huérfana e invisible, y al recrear ese mismo correo Supabase respondía como
-  // si ya existiera. La pantalla ya no borra: desactiva con el interruptor, que
-  // además conserva el historial de movimientos del usuario.
+  /// Elimina la cuenta de acceso y su perfil a la vez. Solo existe a través de
+  /// la Edge Function: borrar únicamente la fila de `user_profiles` deja una
+  /// cuenta de Auth huérfana, invisible desde la app, que además bloquea ese
+  /// correo para cualquier alta futura.
+  Future<void> deleteUser(String profileId) async {
+    try {
+      await _supabase.functions.invoke(
+        'admin-users',
+        body: {'action': 'delete', 'id': profileId},
+      );
+      await fetchUsers();
+    } on FunctionException catch (e) {
+      if (e.status == 404) throw _functionMissing('eliminar cuentas');
+      throw Exception(_functionErrorMessage(e));
+    }
+  }
 
+  /// Desactivar es lo que conviene en la mayoría de los casos: conserva el
+  /// historial de movimientos del usuario y es reversible. Eliminar de verdad
+  /// existe más arriba, en deleteUser(), y borra también la cuenta de acceso.
   Future<void> toggleUserStatus(String id, bool currentStatus) async {
     try {
       await _supabase

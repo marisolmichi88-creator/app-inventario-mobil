@@ -1,25 +1,23 @@
 -- ============================================================================
 -- REPARACIÓN DE CUENTAS  (Supabase > SQL Editor)
 --
--- IMPORTANTE: ejecuta UN PASO A LA VEZ. Selecciona con el mouse solo el bloque
--- que quieras correr y pulsa Run: el editor ejecuta únicamente lo seleccionado,
--- y además solo muestra el resultado de la última sentencia.
---
--- Los pasos 1 y 2 abren transacción a propósito: miras el resultado y recién
--- entonces escribes commit; (o rollback; si algo no cuadra).
+-- IMPORTANTE: en el SQL Editor cada Run es una transacción independiente. Un
+-- commit; escrito en un Run posterior NO confirma el begin; de un Run anterior:
+-- ese ya se revirtió al terminar la petición. Por eso begin y commit tienen que
+-- viajar SIEMPRE en la misma ejecución, como están aquí abajo.
 -- ============================================================================
 
 
 -- ############################################################################
--- PASO 0 — VER a quién afecta cada cosa. Solo lectura, no cambia nada.
+-- PASO 0 — VER a quién afecta. Solo lectura, no cambia nada.
 -- ############################################################################
 select
   u.email,
-  case when p.id is null then '❌ HUÉRFANA (paso 2 la borra)'
-       else '✅ tiene perfil' end                     as perfil,
-  case when u.email_confirmed_at is null then '❌ sin confirmar'
+  case when p.id is null then 'HUERFANA (el paso 1 la borra)'
+       else 'tiene perfil' end                        as perfil,
+  case when u.email_confirmed_at is null then 'sin confirmar'
        else 'confirmada' end                          as correo,
-  case when p.id is null then '—' else p.role end     as rol,
+  case when p.id is null then '-' else p.role end     as rol,
   u.created_at::date                                  as creada
 from auth.users u
 left join public.user_profiles p on p.auth_user_id = u.id
@@ -27,11 +25,14 @@ order by (p.id is null) desc, u.created_at;
 
 
 -- ############################################################################
--- PASO 1 — CONFIRMAR el correo de las cuentas que SÍ tienen perfil.
+-- PASO 1 — REPARAR. Selecciona este bloque COMPLETO (desde begin; hasta
+-- commit;) y pulsa Run una sola vez.
 --
--- Solo toca a los usuarios reales de la app; deja en paz a las huérfanas
--- porque esas se van en el paso 2. No hace falta tocar confirmed_at: es una
--- columna generada que se recalcula sola a partir de email_confirmed_at.
+-- Hace dos cosas: confirma el correo de las cuentas que sí tienen perfil, y
+-- borra las que no tienen ninguno.
+--
+-- ⚠️ El borrado NO se puede deshacer. Corre antes el PASO 0 y revisa la lista.
+--    Si quieres salvar algún correo, quítale los -- a la línea de excepciones.
 -- ############################################################################
 begin;
 
@@ -41,50 +42,29 @@ update auth.users u
  where p.auth_user_id = u.id
    and u.email_confirmed_at is null;
 
--- Revisa que solo aparezcan los que esperabas:
-select u.email, u.email_confirmed_at, p.role, p.is_active
-  from auth.users u
-  join public.user_profiles p on p.auth_user_id = u.id
- order by p.role, u.email;
-
--- Si está bien:  commit;
--- Si no:         rollback;
-
-
--- ############################################################################
--- PASO 2 — BORRAR las cuentas de Auth que quedaron sin perfil.
---
--- ⚠️ ESTO NO SE PUEDE DESHACER una vez que hagas commit.
---
--- Antes de correrlo, mira la lista del paso 0: si alguno de esos correos es
--- tuyo o lo quieres conservar, NO lo borres. Añádelo a la lista de excepciones
--- de abajo y después vuelve a crearlo desde la app, que le creará su perfil.
---
--- Ninguna de estas cuentas tiene datos asociados en la app: los movimientos
--- apuntan a user_profiles, y estas no tienen perfil. Por eso es seguro.
--- ############################################################################
-begin;
-
 delete from auth.users u
  where not exists (
          select 1 from public.user_profiles p where p.auth_user_id = u.id
        )
-   -- Excepciones: descomenta y escribe aquí los correos que quieras SALVAR.
    -- and u.email not in ('emedinada@ucvvirtual.edu.pe')
    ;
 
--- Debe quedar una cuenta de Auth por cada perfil, y ninguna sin confirmar:
-select (select count(*) from auth.users)          as cuentas_auth,
-       (select count(*) from public.user_profiles) as perfiles,
-       (select count(*) from auth.users
-         where email_confirmed_at is null)         as sin_confirmar;
-
--- Si está bien:  commit;
--- Si no:         rollback;
+commit;
 
 
 -- ############################################################################
--- PASO 3 — Comprobación final (después de los commit).
+-- PASO 2 — COMPROBAR que quedó de verdad. Ejecútalo por separado.
+--
+-- Tiene que salir: cuentas_auth = perfiles, y sin_confirmar = 0.
+-- ############################################################################
+select (select count(*) from auth.users)           as cuentas_auth,
+       (select count(*) from public.user_profiles) as perfiles,
+       (select count(*) from auth.users
+         where email_confirmed_at is null)          as sin_confirmar;
+
+
+-- ############################################################################
+-- PASO 3 — Detalle final, quién quedó y cómo.
 -- ############################################################################
 select u.email, p.name, p.role, p.is_active,
        u.email_confirmed_at is not null as correo_confirmado

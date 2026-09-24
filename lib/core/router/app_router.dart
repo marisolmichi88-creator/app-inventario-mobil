@@ -94,7 +94,12 @@ class AppRouter {
             ),
             GoRoute(
               path: '/products',
-              builder: (context, state) => const ProductsScreen(),
+              builder: (context, state) => ProductsScreen(
+                // El generador de etiquetas entra por aquí cuando ya resolvió
+                // el código del producto nuevo.
+                openFormWithCode: state.uri.queryParameters['code'],
+                openFormWithInternalQr: state.uri.queryParameters['interno'],
+              ),
             ),
             GoRoute(
               path: '/scanner',

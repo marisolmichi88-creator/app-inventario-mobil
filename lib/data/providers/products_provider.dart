@@ -15,6 +15,38 @@ class ProductsProvider with ChangeNotifier {
 
   final _supabase = Supabase.instance.client;
 
+  /// Siguiente código interno correlativo, respetando el formato que ya se use:
+  /// toma el `internal_qr` más alto, le conserva el prefijo y le suma uno al
+  /// número final con la misma cantidad de dígitos, de modo que
+  /// `PROENERGIM-INV-0070` produce `PROENERGIM-INV-0071`.
+  ///
+  /// Vive en el provider y no en una pantalla porque lo piden dos: el
+  /// formulario de productos y el generador de etiquetas.
+  static String nextInternalCode(List<ProductModel> products) {
+    const fallbackPrefix = 'PROENERGIM-INV-';
+    final pattern = RegExp(r'^(.*?)(\d+)$');
+
+    String? bestPrefix;
+    var bestNumber = 0;
+    var bestDigits = 4;
+
+    for (final product in products) {
+      final current = product.internalQr?.trim();
+      if (current == null || current.isEmpty) continue;
+      final match = pattern.firstMatch(current);
+      if (match == null) continue;
+      final number = int.tryParse(match.group(2)!);
+      if (number == null || number < bestNumber) continue;
+      bestNumber = number;
+      bestPrefix = match.group(1);
+      bestDigits = match.group(2)!.length;
+    }
+
+    final prefix = bestPrefix ?? fallbackPrefix;
+    final next = bestNumber + 1;
+    return '$prefix${next.toString().padLeft(bestDigits, '0')}';
+  }
+
   Future<void> fetchProducts() async {
     _isLoading = true;
     notifyListeners();

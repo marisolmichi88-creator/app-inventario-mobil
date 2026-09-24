@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
@@ -10,7 +11,13 @@ import '../inventory/widgets/movement_form_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({super.key, this.returnCodeOnly = false});
+
+  /// Modo captura: en vez de buscar el producto y abrir el formulario de
+  /// movimientos, devuelve el código leído a quien abrió la pantalla. Lo usa el
+  /// formulario de productos para llenar el código de fábrica escaneando la
+  /// etiqueta del fabricante.
+  final bool returnCodeOnly;
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -79,6 +86,11 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
         // Detener el escáner mientras se muestra la información
         _scannerController.stop();
+
+        if (widget.returnCodeOnly) {
+          if (mounted) Navigator.pop(context, code);
+          return;
+        }
 
         // Primero mostrar la tarjeta con la información del producto (HU07)
         await _showProductInfo(code);
@@ -392,11 +404,24 @@ class _ScannedProductSheet extends StatelessWidget {
     required this.categoryName,
   });
 
+  /// Muchos códigos de fábrica no son un número sino la dirección de la ficha
+  /// del producto. Cuando es así conviene ofrecer abrirla: es la única forma de
+  /// ver los datos de un artículo que no es nuestro.
+  static Uri? _asLink(String raw) {
+    final text = raw.trim();
+    if (text.startsWith('http://') || text.startsWith('https://')) {
+      return Uri.tryParse(text);
+    }
+    if (text.startsWith('www.')) return Uri.tryParse('https://$text');
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
     final found = product != null;
+    final link = _asLink(code);
 
     return Container(
       decoration: BoxDecoration(
@@ -457,6 +482,64 @@ class _ScannedProductSheet extends StatelessWidget {
                 ),
               ],
             ),
+            if (link != null) ...[
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: accent.withValues(alpha: 0.35)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.link_rounded, color: accent, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Este código lleva a una página',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      link.host,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => launchUrl(
+                          link,
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                        label: const Text('Abrir la ficha del producto'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,

@@ -29,6 +29,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     required bool isDark,
     bool enabled = true,
     int maxLines = 1,
+    String? Function(String value)? extraValidator,
   }) {
     return TextFormField(
       controller: controller,
@@ -37,6 +38,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       validator: (val) {
         if (!enabled) return null;
         if (maxLines == 1 && (val == null || val.isEmpty)) return 'Requerido';
+        if (extraValidator != null) return extraValidator(val ?? '');
         return null;
       },
       style: TextStyle(
@@ -125,6 +127,24 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
+  /// El interruptor no avisaba de nada: si la actualización fallaba, volvía
+  /// solo a su sitio y parecía que la pantalla no respondía.
+  Future<void> _toggleStatus(
+    CategoriesProvider provider,
+    CategoryModel category,
+    bool value,
+  ) async {
+    try {
+      await provider.toggleCategoryStatus(category.id!, value);
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackBar.showError(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
   void _showCategoryForm([CategoryModel? category]) {
     final isEditing = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
@@ -204,6 +224,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     hint: 'Ej. Herramientas Eléctricas',
                     icon: Icons.local_offer_outlined,
                     isDark: isDark,
+                    // El aviso sale debajo del campo, antes de guardar: las
+                    // categorías ya están cargadas en memoria, así que no hace
+                    // falta consultar nada para saber si el nombre choca.
+                    extraValidator: (value) {
+                      final repetida = context
+                          .read<CategoriesProvider>()
+                          .findDuplicate(value, exceptId: category?.id);
+                      if (repetida == null) return null;
+                      return 'Ya existe como "${repetida.name}"';
+                    },
                   ),
                   const SizedBox(height: 16),
                   _buildFormField(
@@ -239,21 +269,40 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (formKey.currentState!.validate()) {
-                              final newCategory = CategoryModel(
-                                id: category?.id,
-                                name: nameController.text.trim(),
-                                description: descController.text.trim(),
-                                isActive: category?.isActive ?? true,
-                              );
-                              
+                          onPressed: () async {
+                            if (!formKey.currentState!.validate()) return;
+
+                            final newCategory = CategoryModel(
+                              id: category?.id,
+                              name: nameController.text.trim(),
+                              description: descController.text.trim(),
+                              isActive: category?.isActive ?? true,
+                            );
+                            final provider = context
+                                .read<CategoriesProvider>();
+
+                            try {
                               if (isEditing) {
-                                context.read<CategoriesProvider>().updateCategory(newCategory);
+                                await provider.updateCategory(newCategory);
                               } else {
-                                context.read<CategoriesProvider>().addCategory(newCategory);
+                                await provider.addCategory(newCategory);
                               }
+                              if (!context.mounted) return;
+                              CustomSnackBar.showSuccess(
+                                context,
+                                isEditing
+                                    ? 'Categoría actualizada'
+                                    : 'Categoría creada',
+                              );
                               Navigator.pop(context);
+                            } catch (e) {
+                              // Antes se cerraba la hoja pasara lo que pasara,
+                              // así que un guardado fallido parecía exitoso.
+                              if (!context.mounted) return;
+                              CustomSnackBar.showError(
+                                context,
+                                e.toString().replaceAll('Exception: ', ''),
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -323,8 +372,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     adminEditButton(onPressed: () => _showCategoryForm(cat)),
                     adminStatusSwitch(
                       value: cat.isActive,
-                      onChanged: (val) =>
-                          provider.toggleCategoryStatus(cat.id!, val),
+                      onChanged: (val) => _toggleStatus(provider, cat, val),
                     ),
                   ],
                 ),

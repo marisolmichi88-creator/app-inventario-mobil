@@ -27,39 +27,70 @@ class CategoriesProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Forma comparable de un nombre: sin espacios de sobra, sin mayúsculas y
+  /// sin tildes. Para el catálogo, "Ferretería", "FERRETERIA" y "ferreteria "
+  /// son la misma categoría, y tenerlas repetidas parte el inventario en dos.
+  static String normalizeName(String raw) {
+    const conTilde = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+    const sinTilde = 'aaaaaeeeeiiiiooooouuuunc';
+    final buffer = StringBuffer();
+    for (final rune in raw.trim().toLowerCase().runes) {
+      final char = String.fromCharCode(rune);
+      final index = conTilde.indexOf(char);
+      buffer.write(index >= 0 ? sinTilde[index] : char);
+    }
+    return buffer.toString().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  /// Categoría ya existente que chocaría con ese nombre, o null si está libre.
+  /// `exceptId` permite que al editar una categoría no choque consigo misma.
+  CategoryModel? findDuplicate(String name, {String? exceptId}) {
+    final objetivo = normalizeName(name);
+    if (objetivo.isEmpty) return null;
+    for (final category in _categories) {
+      if (category.id == exceptId) continue;
+      if (normalizeName(category.name) == objetivo) return category;
+    }
+    return null;
+  }
+
   Future<void> addCategory(CategoryModel category) async {
+    final repetida = findDuplicate(category.name);
+    if (repetida != null) {
+      throw Exception(
+        'Ya existe la categoría "${repetida.name}". Los nombres no distinguen '
+        'mayúsculas ni tildes.',
+      );
+    }
+
     final data = category.toMap();
     if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
       await _supabase.from('categories').insert(data);
       await fetchCategories();
     } catch (e) {
-      debugPrint('Error adding category, retrying without is_active: $e');
-      data.remove('is_active');
-      try {
-        await _supabase.from('categories').insert(data);
-        await fetchCategories();
-      } catch (e2) {
-        debugPrint('Error adding category: $e2');
-      }
+      debugPrint('Error adding category: $e');
+      rethrow;
     }
   }
 
   Future<void> updateCategory(CategoryModel category) async {
+    final repetida = findDuplicate(category.name, exceptId: category.id);
+    if (repetida != null) {
+      throw Exception(
+        'Ya existe la categoría "${repetida.name}". Los nombres no distinguen '
+        'mayúsculas ni tildes.',
+      );
+    }
+
     final data = category.toMap();
     data.remove('id');
     try {
       await _supabase.from('categories').update(data).eq('id', category.id!);
       await fetchCategories();
     } catch (e) {
-      debugPrint('Error updating category, retrying without is_active: $e');
-      data.remove('is_active');
-      try {
-        await _supabase.from('categories').update(data).eq('id', category.id!);
-        await fetchCategories();
-      } catch (e2) {
-        debugPrint('Error updating category: $e2');
-      }
+      debugPrint('Error updating category: $e');
+      rethrow;
     }
   }
 

@@ -136,6 +136,40 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
+  Future<bool> _confirmDeleteUser(UserModel user) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: Color(0xFFEF4444),
+          size: 32,
+        ),
+        title: const Text('¿Eliminar a este usuario?'),
+        content: Text(
+          'Se borrará la cuenta de ${user.email} junto con su ficha. No podrá '
+          'volver a iniciar sesión y no se puede deshacer.\n\n'
+          'Si solo quieres que deje de entrar por un tiempo, usa el '
+          'interruptor de la lista en lugar de eliminarlo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    return confirmado == true;
+  }
+
   Future<void> _toggleStatus(
     UsersProvider provider,
     UserModel user,
@@ -178,6 +212,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
   void _showUserForm([UserModel? user]) {
     final isEditing = user != null;
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
     final nameController = TextEditingController(text: user?.name ?? '');
     final emailController = TextEditingController(text: user?.email ?? '');
     final passwordController = TextEditingController(
@@ -265,7 +300,6 @@ class _UsersScreenState extends State<UsersScreen> {
                         hint: 'correo@gmail.com',
                         icon: Icons.email_outlined,
                         isDark: isDark,
-                        enabled: !isEditing,
                         isEmail: true,
                       ),
                       const SizedBox(height: 16),
@@ -399,6 +433,54 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                      ],
+                      if (isEditing && user!.id != currentUserId) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final confirmado =
+                                        await _confirmDeleteUser(user);
+                                    if (!confirmado || !context.mounted) return;
+                                    setState(() {
+                                      isSubmitting = true;
+                                      errorMessage = null;
+                                    });
+                                    try {
+                                      await context
+                                          .read<UsersProvider>()
+                                          .deleteUser(user.id!);
+                                      if (context.mounted) {
+                                        CustomSnackBar.showSuccess(
+                                          context,
+                                          'Usuario eliminado',
+                                        );
+                                        Navigator.pop(context);
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        setState(() {
+                                          isSubmitting = false;
+                                          errorMessage =
+                                              UsersProvider.describeError(e);
+                                        });
+                                      }
+                                    }
+                                  },
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 20,
+                            ),
+                            label: const Text('Eliminar usuario'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                       ],
                       Row(
                         children: [

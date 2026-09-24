@@ -15,9 +15,20 @@ import '../../core/services/pdf_service.dart';
 import '../../core/services/excel_service.dart';
 import '../../core/services/stock_calculator.dart';
 import '../../features/auth/auth_provider.dart';
+import '../scanner/scanner_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+  const ProductsScreen({
+    super.key,
+    this.openFormWithCode,
+    this.openFormWithInternalQr,
+  });
+
+  /// Cuando el generador de etiquetas manda a crear un producto con el código
+  /// ya resuelto —escaneado del fabricante o generado como correlativo—, la
+  /// pantalla abre sola el formulario con ese código puesto.
+  final String? openFormWithCode;
+  final String? openFormWithInternalQr;
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -45,6 +56,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
       // Para el stock por almacén calculado desde los movimientos (HU17).
       await movementsProvider.fetchMovements();
       await warehousesProvider.fetchWarehouses();
+
+      // El correlativo necesita el catálogo cargado para saber cuál es el
+      // último, por eso el formulario se abre recién aquí y no antes.
+      if (!mounted) return;
+      if (widget.openFormWithCode != null ||
+          widget.openFormWithInternalQr != null) {
+        _showProductForm(
+          prefilledCode: widget.openFormWithCode,
+          prefilledInternalQr: widget.openFormWithInternalQr,
+        );
+      }
     });
   }
 
@@ -195,15 +217,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return attributes;
   }
 
-  void _showProductForm([ProductModel? product]) {
+  /// Abre la cámara en modo captura y devuelve el código leído, sin buscar el
+  /// producto ni abrir el formulario de movimientos.
+  Future<String?> _scanCode() async {
+    return Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => const ScannerScreen(returnCodeOnly: true),
+      ),
+    );
+  }
+
+  void _showProductForm({
+    ProductModel? product,
+    String? prefilledCode,
+    String? prefilledInternalQr,
+  }) {
     final isEditing = product != null;
-    final codeController = TextEditingController(text: product?.code ?? '');
+    final codeController = TextEditingController(
+      text: product?.code ?? prefilledCode ?? '',
+    );
     final serialNumberController = TextEditingController(
       text: product?.serialNumber ?? '',
     );
     final nameController = TextEditingController(text: product?.name ?? '');
     final internalQrController = TextEditingController(
-      text: product?.internalQr ?? '',
+      text: product?.internalQr ?? prefilledInternalQr ?? '',
     );
     final subtypeController = TextEditingController(
       text: product?.subtype ?? '',
@@ -319,6 +357,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         isDark: isDark,
                         enabled: isAdmin,
                         isRequired: false,
+                        suffix: isAdmin
+                            ? IconButton(
+                                tooltip: 'Escanear el código del fabricante',
+                                icon: const Icon(
+                                  Icons.qr_code_scanner_rounded,
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  final scanned = await _scanCode();
+                                  if (scanned == null || !context.mounted) {
+                                    return;
+                                  }
+                                  codeController.text = scanned;
+                                  // Avisar antes de duplicar: el mismo código
+                                  // en dos productos rompe el escáner, que
+                                  // busca por código y se queda con el primero.
+                                  final repetido = context
+                                      .read<ProductsProvider>()
+                                      .products
+                                      .where(
+                                        (p) =>
+                                            p.id != product?.id &&
+                                            (p.code == scanned ||
+                                                p.internalQr == scanned),
+                                      )
+                                      .firstOrNull;
+                                  if (repetido != null && context.mounted) {
+                                    CustomSnackBar.showWarning(
+                                      context,
+                                      'Ese código ya lo tiene "${repetido.name}".',
+                                    );
+                                  }
+                                },
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
@@ -329,6 +402,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         isDark: isDark,
                         enabled: isAdmin,
                         isRequired: false,
+                        suffix: isAdmin
+                            ? IconButton(
+                                tooltip: 'Generar el siguiente código interno',
+                                icon: const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  internalQrController.text =
+                                      ProductsProvider.nextInternalCode(
+                                    context.read<ProductsProvider>().products,
+                                  );
+                                },
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       _buildFormField(
@@ -977,6 +1065,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     bool enabled = true,
     bool isRequired = true,
     int maxLines = 1,
+    Widget? suffix,
   }) {
     return TextFormField(
       controller: controller,
@@ -1008,6 +1097,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           color: isDark ? Colors.grey.shade400 : Colors.black87,
           size: 20,
         ),
+        suffixIcon: suffix,
         filled: true,
         fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(
@@ -1723,7 +1813,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   : null,
                             ),
                             child: InkWell(
-                              onTap: () => _showProductForm(prod),
+                              onTap: () => _showProductForm(product: prod),
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
