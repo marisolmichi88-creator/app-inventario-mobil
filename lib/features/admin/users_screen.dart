@@ -93,6 +93,89 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
+  Widget _buildLoadError(UsersProvider provider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: Color(0xFFF87171),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No se pudo cargar la lista de usuarios',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SelectableText(
+              provider.loadError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: provider.fetchUsers,
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleStatus(
+    UsersProvider provider,
+    UserModel user,
+    bool value,
+  ) async {
+    try {
+      await provider.toggleUserStatus(user.id!, !value);
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackBar.showError(context, UsersProvider.describeError(e));
+    }
+  }
+
+  void _showConfirmationNotice(String email) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.mark_email_unread_rounded,
+          color: Color(0xFF3B82F6),
+          size: 32,
+        ),
+        title: const Text('Falta confirmar el correo'),
+        content: Text(
+          'La cuenta de $email quedó creada, pero Supabase exige confirmar el '
+          'correo antes del primer ingreso. Pídele que abra el enlace que le '
+          'llegó; hasta entonces la app le dirá que su correo no está '
+          'confirmado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showUserForm([UserModel? user]) {
     final isEditing = user != null;
     final nameController = TextEditingController(text: user?.name ?? '');
@@ -106,6 +189,9 @@ class _UsersScreenState extends State<UsersScreen> {
     }
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
+    // El error se muestra dentro de la hoja. Un SnackBar se dibuja en el
+    // Scaffold, por debajo del modal, así que el administrador nunca lo veía.
+    String? errorMessage;
 
     showModalBottomSheet(
       context: context,
@@ -274,6 +360,46 @@ class _UsersScreenState extends State<UsersScreen> {
                       const SizedBox(height: 24),
                       Divider(color: Colors.grey.withValues(alpha: 0.2)),
                       const SizedBox(height: 16),
+                      if (errorMessage != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF7F1D1D).withValues(alpha: 0.3)
+                                : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFF87171),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.error_rounded,
+                                color: Color(0xFFF87171),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: SelectableText(
+                                  errorMessage!,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFFFECACA)
+                                        : const Color(0xFF991B1B),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       Row(
                         children: [
                           Expanded(
@@ -306,7 +432,10 @@ class _UsersScreenState extends State<UsersScreen> {
                                   ? null
                                   : () async {
                                       if (formKey.currentState!.validate()) {
-                                        setState(() => isSubmitting = true);
+                                        setState(() {
+                                          isSubmitting = true;
+                                          errorMessage = null;
+                                        });
                                         try {
                                           final newUser = UserModel(
                                             id: user?.id,
@@ -320,6 +449,7 @@ class _UsersScreenState extends State<UsersScreen> {
                                           );
 
                                           String successMessage;
+                                          var needsConfirmation = false;
                                           if (isEditing) {
                                             await context
                                                 .read<UsersProvider>()
@@ -330,8 +460,9 @@ class _UsersScreenState extends State<UsersScreen> {
                                             final result = await context
                                                 .read<UsersProvider>()
                                                 .addUser(newUser);
-                                            successMessage =
-                                                result.requiresEmailConfirmation
+                                            needsConfirmation = result
+                                                .requiresEmailConfirmation;
+                                            successMessage = needsConfirmation
                                                 ? 'Cuenta creada. El usuario debe confirmar el correo antes de ingresar.'
                                                 : 'Cuenta creada y lista para ingresar.';
                                           }
@@ -344,25 +475,24 @@ class _UsersScreenState extends State<UsersScreen> {
                                               successMessage,
                                             );
                                             Navigator.pop(context);
+                                            // Un aviso de 3 segundos se pierde,
+                                            // y sin confirmar el correo la
+                                            // cuenta nueva no puede entrar.
+                                            if (needsConfirmation) {
+                                              _showConfirmationNotice(
+                                                newUser.email,
+                                              );
+                                            }
                                           }
                                         } catch (e) {
                                           if (context.mounted) {
-                                            setState(
-                                              () => isSubmitting = false,
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  e.toString().replaceAll(
-                                                    'Exception: ',
-                                                    '',
-                                                  ),
-                                                ),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
+                                            setState(() {
+                                              isSubmitting = false;
+                                              errorMessage =
+                                                  UsersProvider.describeError(
+                                                    e,
+                                                  );
+                                            });
                                           }
                                         }
                                       }
@@ -432,6 +562,10 @@ class _UsersScreenState extends State<UsersScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (provider.loadError != null) {
+            return _buildLoadError(provider);
+          }
+
           if (provider.users.isEmpty) {
             return const AdminEmptyState(
               icon: Icons.people_outline,
@@ -472,7 +606,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       value: user.isActive,
                       onChanged: user.id == currentUserId
                           ? null
-                          : (val) => provider.toggleUserStatus(user.id!, !val),
+                          : (val) => _toggleStatus(provider, user, val),
                     ),
                   ],
                 ),
