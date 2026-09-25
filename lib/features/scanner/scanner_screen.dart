@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/services/barcode_lookup.dart';
 import '../../core/theme/app_shadows.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
@@ -135,8 +137,18 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                 .firstOrNull ??
             'Sin categoría';
 
-    // La tarjeta devuelve true si el usuario quiere registrar un movimiento.
-    final register = await showModalBottomSheet<bool>(
+    // Si el codigo no esta en el catalogo se le pregunta a los catalogos
+    // publicos por el nombre. Lo normal es que no lo sepan; el aviso y el
+    // boton de busqueda quedan igual, asi que el fallo es silencioso.
+    String? sugerencia;
+    if (product == null) {
+      sugerencia = await BarcodeLookup.productName(code);
+      if (!mounted) return;
+    }
+
+    // La tarjeta devuelve la accion elegida: registrar un movimiento o crear
+    // el producto que no existe.
+    final accion = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -144,15 +156,24 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
         code: code,
         product: product,
         categoryName: categoryName,
+        suggestedName: sugerencia,
       ),
     );
 
-    if (register == true && mounted) {
+    if (!mounted) return;
+
+    if (accion == 'registrar') {
       await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (_) => MovementFormDialog(prefilledCode: code),
       );
+    } else if (accion == 'crear') {
+      final params = <String, String>{'code': code};
+      if (sugerencia != null && sugerencia.isNotEmpty) {
+        params['nombre'] = sugerencia;
+      }
+      if (mounted) context.go(Uri(path: '/products', queryParameters: params).toString());
     }
   }
 
@@ -398,10 +419,14 @@ class _ScannedProductSheet extends StatelessWidget {
   final ProductModel? product;
   final String categoryName;
 
+  /// Nombre que devolvio la busqueda del codigo, si alguien lo reconocio.
+  final String? suggestedName;
+
   const _ScannedProductSheet({
     required this.code,
     required this.product,
     required this.categoryName,
+    this.suggestedName,
   });
 
   /// Muchos códigos de fábrica no son un número sino la dirección de la ficha
@@ -540,11 +565,102 @@ class _ScannedProductSheet extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 20),
+            if (suggestedName != null) ...[
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.travel_explore_rounded,
+                      color: Color(0xFF10B981),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Encontrado en internet',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            suggestedName!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, 'crear'),
+                icon: const Icon(Icons.add_box_outlined, size: 20),
+                label: Text(
+                  suggestedName == null
+                      ? 'Crear producto con este código'
+                      : 'Crear producto con estos datos',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                // Ningún catálogo cubre todo. Cuando no lo reconocen, esto es
+                // exactamente lo que haría una persona: buscar el número.
+                onPressed: () => launchUrl(
+                  BarcodeLookup.searchUrl(code),
+                  mode: LaunchMode.externalApplication,
+                ),
+                icon: const Icon(Icons.search_rounded, size: 20),
+                label: const Text('Buscar este código en internet'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             SizedBox(
               width: double.infinity,
               child: TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(context),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -589,12 +705,30 @@ class _ScannedProductSheet extends StatelessWidget {
             if (product!.subtype?.isNotEmpty == true)
               _infoRow(context, isDark, Icons.category, 'Subtipo',
                   product!.subtype!),
-            if (product!.brand?.isNotEmpty == true)
-              _infoRow(context, isDark, Icons.business_outlined, 'Marca',
-                  product!.brand!),
-            if (product!.model?.isNotEmpty == true)
-              _infoRow(context, isDark, Icons.precision_manufacturing_outlined,
-                  'Modelo', product!.model!),
+            // Marca y modelo se leen juntos: apilados uno debajo del otro
+            // obligaban a recorrer la ficha de arriba abajo para algo que es
+            // un solo dato en la cabeza de quien mira.
+            if (product!.brand?.isNotEmpty == true &&
+                product!.model?.isNotEmpty == true)
+              _infoPair(
+                context,
+                isDark,
+                Icons.business_outlined,
+                'Marca',
+                product!.brand!,
+                Icons.precision_manufacturing_outlined,
+                'Modelo',
+                product!.model!,
+              )
+            else ...[
+              if (product!.brand?.isNotEmpty == true)
+                _infoRow(context, isDark, Icons.business_outlined, 'Marca',
+                    product!.brand!),
+              if (product!.model?.isNotEmpty == true)
+                _infoRow(context, isDark,
+                    Icons.precision_manufacturing_outlined, 'Modelo',
+                    product!.model!),
+            ],
             ...product!.visibleAttributes.entries.map(
               (entry) => _infoRow(
                 context,
@@ -621,7 +755,7 @@ class _ScannedProductSheet extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context, false),
+                    onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -637,7 +771,7 @@ class _ScannedProductSheet extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () => Navigator.pop(context, 'registrar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accent,
                       foregroundColor:
@@ -670,6 +804,67 @@ class _ScannedProductSheet extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Dos datos en la misma línea, cada uno con su icono y su etiqueta encima.
+  /// Se usa para pares que siempre se consultan juntos, como marca y modelo.
+  Widget _infoPair(
+    BuildContext context,
+    bool isDark,
+    IconData iconA,
+    String labelA,
+    String valueA,
+    IconData iconB,
+    String labelB,
+    String valueB,
+  ) {
+    Widget celda(IconData icon, String label, String value) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: celda(iconA, labelA, valueA)),
+          const SizedBox(width: 16),
+          Expanded(child: celda(iconB, labelB, valueB)),
         ],
       ),
     );

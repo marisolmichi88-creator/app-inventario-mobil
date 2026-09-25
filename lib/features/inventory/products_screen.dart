@@ -22,6 +22,7 @@ class ProductsScreen extends StatefulWidget {
     super.key,
     this.openFormWithCode,
     this.openFormWithInternalQr,
+    this.openFormWithName,
   });
 
   /// Cuando el generador de etiquetas manda a crear un producto con el código
@@ -29,6 +30,10 @@ class ProductsScreen extends StatefulWidget {
   /// pantalla abre sola el formulario con ese código puesto.
   final String? openFormWithCode;
   final String? openFormWithInternalQr;
+
+  /// Nombre sugerido por la búsqueda del código de barras, cuando algún
+  /// catálogo público lo reconoció.
+  final String? openFormWithName;
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -65,6 +70,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _showProductForm(
           prefilledCode: widget.openFormWithCode,
           prefilledInternalQr: widget.openFormWithInternalQr,
+          prefilledName: widget.openFormWithName,
         );
       }
     });
@@ -231,6 +237,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ProductModel? product,
     String? prefilledCode,
     String? prefilledInternalQr,
+    String? prefilledName,
   }) {
     final isEditing = product != null;
     final codeController = TextEditingController(
@@ -239,7 +246,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final serialNumberController = TextEditingController(
       text: product?.serialNumber ?? '',
     );
-    final nameController = TextEditingController(text: product?.name ?? '');
+    final nameController = TextEditingController(
+      text: product?.name ?? prefilledName ?? '',
+    );
     final internalQrController = TextEditingController(
       text: product?.internalQr ?? prefilledInternalQr ?? '',
     );
@@ -1488,11 +1497,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     false);
             final matchesCategory =
                 _filterCategoryId == null || p.categoryId == _filterCategoryId;
-            // Con filtro de almacén: solo productos con movimientos en ese almacén o que pertenezcan a él por defecto.
+            // Con filtro de almacén: los productos asignados a él, más los que
+            // tengan saldo ahí por movimientos.
+            //
+            // Antes se preguntaba containsKey(), pero byWarehouse() devuelve
+            // una entrada por CADA producto —con cero cuando no hay nada—, así
+            // que la condición siempre se cumplía y el filtro no descartaba
+            // ninguno. Hay que mirar el saldo, no si la clave existe.
             if (_filterWarehouseId != null) {
               final belongsToWarehouse = p.warehouseId == _filterWarehouseId;
-              final hasMovements = whStock != null && whStock.containsKey(p.id);
-              if (!belongsToWarehouse && !hasMovements) return false;
+              final stockAqui = whStock?[p.id] ?? 0;
+              if (!belongsToWarehouse && stockAqui == 0) return false;
             }
             final ds = displayStock(p);
             final matchesLowStock = !_showOnlyLowStock || ds <= p.minStock;

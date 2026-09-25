@@ -123,8 +123,49 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateProfile(String name) async {
+  /// Actualiza el perfil propio. El correo viaja por la Edge Function porque
+  /// vive en Supabase Auth: cambiarlo solo en `user_profiles` dejaría la
+  /// pantalla mostrando uno con el que no se puede iniciar sesión.
+  Future<void> updateProfile(String name, {String? email}) async {
     if (_currentUser == null) return;
+
+    final nuevoCorreo = email?.trim().toLowerCase();
+    final correoCambio =
+        nuevoCorreo != null &&
+        nuevoCorreo.isNotEmpty &&
+        nuevoCorreo != _currentUser!.email.toLowerCase();
+
+    if (correoCambio) {
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'admin-users',
+          body: {'action': 'update_self', 'name': name, 'email': nuevoCorreo},
+        );
+        _currentUser = UserModel(
+          id: _currentUser!.id,
+          authUserId: _currentUser!.authUserId,
+          name: name,
+          email: nuevoCorreo,
+          password: _currentUser!.password,
+          role: _currentUser!.role,
+          isActive: _currentUser!.isActive,
+        );
+        notifyListeners();
+        return;
+      } on FunctionException catch (e) {
+        final details = e.details;
+        if (e.status == 404) {
+          throw Exception(
+            'Falta desplegar la función "admin-users" en Supabase. Sin ella '
+            'no se puede cambiar el correo de acceso.',
+          );
+        }
+        if (details is Map && details['error'] != null) {
+          throw Exception(details['error'].toString());
+        }
+        throw Exception('No se pudo cambiar el correo (HTTP ${e.status}).');
+      }
+    }
 
     try {
       await Supabase.instance.client.rpc(

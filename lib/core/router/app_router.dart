@@ -99,6 +99,7 @@ class AppRouter {
                 // el código del producto nuevo.
                 openFormWithCode: state.uri.queryParameters['code'],
                 openFormWithInternalQr: state.uri.queryParameters['interno'],
+                openFormWithName: state.uri.queryParameters['nombre'],
               ),
             ),
             GoRoute(

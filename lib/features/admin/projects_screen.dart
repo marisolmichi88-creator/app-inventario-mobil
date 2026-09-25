@@ -311,6 +311,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           floatingLabelBehavior: FloatingLabelBehavior.always,
                         ),
                         items: const [
+                          DropdownMenuItem(value: 'pending', child: Text('Pendiente')),
                           DropdownMenuItem(value: 'active', child: Text('Activo')),
                           DropdownMenuItem(value: 'completed', child: Text('Completado')),
                           DropdownMenuItem(value: 'cancelled', child: Text('Cancelado')),
@@ -394,6 +395,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   String _statusLabel(String status) {
     switch (status) {
+      case 'pending':
+        return 'Pendiente';
       case 'completed':
         return 'Completado';
       case 'cancelled':
@@ -405,6 +408,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
+      case 'pending':
+        return const Color(0xFFF59E0B);
       case 'completed':
         return const Color(0xFF10B981);
       case 'cancelled':

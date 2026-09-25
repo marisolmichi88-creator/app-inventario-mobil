@@ -805,6 +805,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           .read<AuthProvider>()
                                           .updateProfile(
                                             nameController.text.trim(),
+                                            email: emailController.text.trim(),
                                           );
                                       if (context.mounted) {
                                         CustomSnackBar.showSuccess(
@@ -813,11 +814,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         );
                                         Navigator.pop(context);
                                       }
-                                    } catch (_) {
+                                    } catch (e) {
+                                      // El correo se escribía y se perdía en
+                                      // silencio: solo se enviaba el nombre.
                                       if (context.mounted) {
                                         CustomSnackBar.showError(
                                           context,
-                                          'No se pudo actualizar el perfil',
+                                          e.toString().replaceAll(
+                                            'Exception: ',
+                                            '',
+                                          ),
                                         );
                                       }
                                     }

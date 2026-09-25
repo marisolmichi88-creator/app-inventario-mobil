@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/widgets/admin_ui.dart';
 import '../../core/widgets/custom_snackbar.dart';
 import '../../data/providers/categories_provider.dart';
+import '../../data/providers/products_provider.dart';
 import '../../data/models/category_model.dart';
 
 class CategoriesScreen extends StatefulWidget {
@@ -16,8 +17,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CategoriesProvider>().fetchCategories();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<CategoriesProvider>().fetchCategories();
+      // El catálogo hace falta para contar cuántos productos usa cada
+      // categoría; si ya está cargado no se vuelve a pedir.
+      if (!mounted) return;
+      final products = context.read<ProductsProvider>();
+      if (products.products.isEmpty) await products.fetchProducts();
     });
   }
 
@@ -125,6 +131,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         );
       },
     );
+  }
+
+  /// Cuántos productos usan la categoría, además de su descripción. Sin este
+  /// dato no había forma de saber desde la pantalla si una categoría estaba
+  /// en uso o era un resto que se podía borrar.
+  String _subtitleFor(CategoryModel category) {
+    final total = context
+        .watch<ProductsProvider>()
+        .products
+        .where((p) => p.categoryId == category.id)
+        .length;
+
+    final conteo = total == 1 ? '1 producto' : '$total productos';
+    final descripcion = category.description?.trim() ?? '';
+    return descripcion.isEmpty ? conteo : '$conteo · $descripcion';
   }
 
   /// El interruptor no avisaba de nada: si la actualización fallaba, volvía
@@ -365,7 +386,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     ? const Color(0xFF10B981).withValues(alpha: 0.12)
                     : const Color(0xFFEF4444).withValues(alpha: 0.12),
                 title: cat.name,
-                subtitle: cat.description?.isNotEmpty == true ? cat.description! : 'Sin descripción',
+                subtitle: _subtitleFor(cat),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

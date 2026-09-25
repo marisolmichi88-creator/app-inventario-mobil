@@ -40,6 +40,10 @@ class _MovementsScreenState extends State<MovementsScreen> {
       _filterStart != null ||
       _filterEnd != null;
 
+  /// El tipo de movimiento también vive dentro de la hoja de filtros, así que
+  /// cuenta para pintar el botón como activo.
+  bool get _hasAnyFilter => _hasAdvancedFilters || _filterType != 'ALL';
+
   List<MovementModel> _applyFilters(List<MovementModel> movements) {
     return movements.where((m) {
       if (_filterType != 'ALL' && m.type != _filterType) return false;
@@ -109,6 +113,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
     final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
 
     // Valores temporales dentro del panel
+    String tmpType = _filterType;
     String? tmpProduct = _filterProductId;
     String? tmpWarehouse = _filterWarehouseId;
     String? tmpUser = _filterUserId;
@@ -191,6 +196,52 @@ class _MovementsScreenState extends State<MovementsScreen> {
                         fontWeight: FontWeight.w900,
                         color: Theme.of(ctx).colorScheme.onSurface,
                       ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Tipo de movimiento',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _typeOption(
+                            label: 'Todos',
+                            icon: Icons.all_inclusive_rounded,
+                            selected: tmpType == 'ALL',
+                            color: accent,
+                            isDark: isDark,
+                            onTap: () => setSheet(() => tmpType = 'ALL'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _typeOption(
+                            label: 'Ingresos',
+                            icon: Icons.arrow_downward_rounded,
+                            selected: tmpType == 'IN',
+                            color: const Color(0xFF10B981),
+                            isDark: isDark,
+                            onTap: () => setSheet(() => tmpType = 'IN'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _typeOption(
+                            label: 'Salidas',
+                            icon: Icons.arrow_upward_rounded,
+                            selected: tmpType == 'OUT',
+                            color: const Color(0xFFEF4444),
+                            isDark: isDark,
+                            onTap: () => setSheet(() => tmpType = 'OUT'),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     // Rango de fechas
@@ -310,6 +361,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                             onPressed: () {
                               Navigator.pop(ctx);
                               setState(() {
+                                _filterType = 'ALL';
                                 _filterProductId = null;
                                 _filterWarehouseId = null;
                                 _filterUserId = null;
@@ -336,6 +388,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                             onPressed: () {
                               Navigator.pop(ctx);
                               setState(() {
+                                _filterType = tmpType;
                                 _filterProductId = tmpProduct;
                                 _filterWarehouseId = tmpWarehouse;
                                 _filterUserId = tmpUser;
@@ -601,7 +654,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 const SizedBox(width: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: _hasAdvancedFilters
+                    color: _hasAnyFilter
                         ? actionColor
                         : (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF)),
                     borderRadius: BorderRadius.circular(12),
@@ -611,7 +664,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                     padding: const EdgeInsets.all(10),
                     icon: Icon(
                       Icons.tune_rounded,
-                      color: _hasAdvancedFilters
+                      color: _hasAnyFilter
                           ? (isDark ? const Color(0xFF0F172A) : Colors.white)
                           : (isDark ? Colors.white : const Color(0xFF2563EB)),
                       size: 20,
@@ -875,6 +928,64 @@ class _MovementsScreenState extends State<MovementsScreen> {
     );
   }
 
+  /// Botón de tipo de movimiento dentro de la hoja de filtros.
+  ///
+  /// Reemplaza a _buildFilterChip, que estaba escrito pero no se usaba en
+  /// ninguna pantalla: por eso no había forma de filtrar por ingresos o
+  /// salidas aunque el filtro existiera en el código.
+  Widget _typeOption({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? color
+              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? color
+                : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          ),
+          boxShadow: selected ? AppShadows.tinted(color, alpha: 0.12) : [],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: selected
+                  ? Colors.white
+                  : (isDark ? Colors.grey.shade400 : Colors.black87),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : (isDark ? Colors.grey.shade300 : Colors.black87),
+                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  /// Chips de tipo que van sobre la lista. Comparten `_filterType` con el
+  /// selector de la hoja de filtros, así que los dos se reflejan entre sí.
   Widget _buildFilterChip(
     String label,
     String type,
