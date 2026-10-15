@@ -61,16 +61,10 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
 
         if (products.isNotEmpty) {
           if (widget.prefilledCode != null) {
-            try {
-              selectedProductId = products
-                  .firstWhere((p) =>
-                      p.code == widget.prefilledCode ||
-                      p.internalQr == widget.prefilledCode ||
-                      p.serialNumber == widget.prefilledCode)
-                  .id;
-            } catch (_) {
-              selectedProductId = null;
-            }
+            selectedProductId = ProductsProvider.findByCode(
+              products,
+              widget.prefilledCode!,
+            )?.id;
           } else {
             selectedProductId = null;
           }
@@ -382,22 +376,19 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                                   notes: notesController.text.trim(),
                                 );
 
-                                final success = await context
+                                final error = await context
                                     .read<MovementsProvider>()
                                     .registerMovement(mov);
 
                                 if (context.mounted) {
-                                  if (success) {
+                                  if (error == null) {
                                     Navigator.pop(context, true);
                                     CustomSnackBar.showSuccess(
                                       context,
                                       'Registro exitoso',
                                     );
                                   } else {
-                                    CustomSnackBar.showError(
-                                      context,
-                                      'Stock insuficiente',
-                                    );
+                                    CustomSnackBar.showError(context, error);
                                   }
                                 }
                               }

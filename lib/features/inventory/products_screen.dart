@@ -388,8 +388,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       .where(
                                         (p) =>
                                             p.id != product?.id &&
-                                            (p.code == scanned ||
-                                                p.internalQr == scanned),
+                                            p.matchesCode(scanned),
                                       )
                                       .firstOrNull;
                                   if (repetido != null && context.mounted) {

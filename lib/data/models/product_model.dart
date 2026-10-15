@@ -86,6 +86,25 @@ class ProductModel {
     return map;
   }
 
+  /// Deja un código listo para comparar: sin espacios, saltos de línea ni
+  /// caracteres invisibles, y en mayúsculas. La cámara a veces devuelve el
+  /// texto con un salto de línea al final y en la base hay códigos guardados
+  /// con espacios o en minúsculas; comparados tal cual, el escáner decía
+  /// "Producto no encontrado" con el producto en el catálogo.
+  static String normalizeCode(String raw) =>
+      raw.replaceAll(RegExp(r'[\s​-‍﻿]'), '').toUpperCase();
+
+  /// Si un código leído corresponde a este producto: por el código de
+  /// fábrica, el QR interno o el número de serie de la unidad.
+  bool matchesCode(String raw) {
+    final buscado = normalizeCode(raw);
+    if (buscado.isEmpty) return false;
+    for (final propio in [code, internalQr, serialNumber]) {
+      if (propio != null && normalizeCode(propio) == buscado) return true;
+    }
+    return false;
+  }
+
   /// Claves de `attributes` que dejó la conciliación del catálogo con las
   /// fotos. Sirven para rastrear de dónde salió cada dato, pero no son
   /// características del producto, así que no se muestran en la app.

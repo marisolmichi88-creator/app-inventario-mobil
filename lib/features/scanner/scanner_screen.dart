@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/barcode_lookup.dart';
 import '../../core/theme/app_shadows.dart';
+import '../../core/widgets/custom_snackbar.dart';
 import '../../data/providers/products_provider.dart';
 import '../../data/providers/categories_provider.dart';
 import '../../data/models/product_model.dart';
@@ -79,9 +80,11 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
 
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
-      if (barcode.rawValue != null) {
+      // Algunas etiquetas devuelven el texto con un salto de línea al final;
+      // se quita aquí para que no viaje al buscador ni al formulario.
+      final String code = barcode.rawValue?.trim() ?? '';
+      if (code.isNotEmpty) {
         setState(() => _isProcessing = true);
-        final String code = barcode.rawValue!;
 
         // Retroalimentación física (Vibración)
         HapticFeedback.heavyImpact();
@@ -111,22 +114,28 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     final productsProvider = context.read<ProductsProvider>();
     final categoriesProvider = context.read<CategoriesProvider>();
 
-    if (productsProvider.products.isEmpty) {
-      await productsProvider.fetchProducts();
-    }
+    // El catálogo se recarga en cada lectura. Con la lista que quedó en
+    // memoria no aparecen los productos creados después, por ejemplo desde
+    // otro celular, y el escáner los daba por inexistentes.
+    final cargado = await productsProvider.fetchProducts();
     if (categoriesProvider.categories.isEmpty) {
       await categoriesProvider.fetchCategories();
     }
     if (!mounted) return;
 
-    ProductModel? product;
-    for (final p in productsProvider.products) {
-      // Un producto puede identificarse por el código de fábrica, por el QR
-      // interno o por el número de serie de una unidad individual.
-      if (p.code == code || p.internalQr == code || p.serialNumber == code) {
-        product = p;
-        break;
-      }
+    // Un producto puede identificarse por el código de fábrica, por el QR
+    // interno o por el número de serie de una unidad individual.
+    final ProductModel? product =
+        ProductsProvider.findByCode(productsProvider.products, code);
+
+    // Sin catálogo no se puede saber si el producto existe: decir "no
+    // encontrado" invitaría a crearlo de nuevo.
+    if (product == null && !cargado) {
+      CustomSnackBar.showError(
+        context,
+        'No se pudo consultar el catálogo. Revisa la conexión e intenta de nuevo.',
+      );
+      return;
     }
 
     final categoryName = product?.categoryId == null

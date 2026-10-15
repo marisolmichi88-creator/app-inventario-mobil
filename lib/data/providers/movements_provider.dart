@@ -104,7 +104,12 @@ class MovementsProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> registerMovement(
+  /// Registra un movimiento y ajusta el stock.
+  ///
+  /// Devuelve null si se guardó y, si no, el motivo listo para mostrar.
+  /// Antes devolvía solo true/false y la pantalla decía "Stock insuficiente"
+  /// ante cualquier fallo, incluso sin conexión o sin permisos.
+  Future<String?> registerMovement(
     MovementModel movement, {
     bool showNotification = true,
     bool updateProductStock = true,
@@ -119,11 +124,13 @@ class MovementsProvider with ChangeNotifier {
               .select('stock')
               .eq('id', movement.productId)
               .maybeSingle();
-              
+
           if (response != null) {
             final currentStock = response['stock'] as int;
             if (currentStock < movement.quantity) {
-              return false; // Stock insuficiente
+              return currentStock <= 0
+                  ? 'Stock insuficiente: este producto no tiene unidades.'
+                  : 'Stock insuficiente: solo quedan $currentStock.';
             }
           }
         }
@@ -166,11 +173,38 @@ class MovementsProvider with ChangeNotifier {
       }
 
       await fetchMovements();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('Error registering movement: $e');
-      return false;
+      return _motivoDelFallo(e);
     }
+  }
+
+  /// Traduce el error de Supabase a algo que quien registra pueda resolver.
+  /// La detección de red sigue el mismo criterio que
+  /// `UsersProvider.describeError`.
+  static String _motivoDelFallo(Object e) {
+    if (e is PostgrestException) {
+      if (e.code == '42501') {
+        return 'Tu usuario no tiene permiso para registrar movimientos.';
+      }
+      if (e.code == 'PGRST301' || e.message.toLowerCase().contains('jwt')) {
+        return 'La sesión venció. Cierra sesión y vuelve a entrar.';
+      }
+      if (e.code == '23503') {
+        return 'El producto, almacén o proyecto elegido ya no existe.';
+      }
+      return 'No se pudo registrar el movimiento: ${e.message}';
+    }
+    final texto = e.toString().toLowerCase();
+    if (texto.contains('socketexception') ||
+        texto.contains('failed host lookup') ||
+        texto.contains('clientexception') ||
+        texto.contains('timeoutexception')) {
+      return 'Sin conexión con el servidor. Revisa el internet e intenta de nuevo.';
+    }
+    return 'No se pudo registrar el movimiento: '
+        '${e.toString().replaceAll('Exception: ', '')}';
   }
 
   /// Borra un movimiento del historial. La auditoría NO se toca: la copia

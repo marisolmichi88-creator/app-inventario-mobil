@@ -47,13 +47,30 @@ class ProductsProvider with ChangeNotifier {
     return '$prefix${next.toString().padLeft(bestDigits, '0')}';
   }
 
-  Future<void> fetchProducts() async {
+  /// Producto al que pertenece un código escaneado o escrito, o null si no es
+  /// de ninguno. Si el código lo comparten uno activo y uno desactivado, gana
+  /// el activo: es el único con el que se puede registrar un movimiento.
+  static ProductModel? findByCode(Iterable<ProductModel> products, String code) {
+    ProductModel? inactivo;
+    for (final product in products) {
+      if (!product.matchesCode(code)) continue;
+      if (product.isActive) return product;
+      inactivo ??= product;
+    }
+    return inactivo;
+  }
+
+  /// Recarga el catálogo. Devuelve false si no se pudo (sin conexión, sesión
+  /// vencida…); en ese caso la lista conserva lo que tenía.
+  Future<bool> fetchProducts() async {
     _isLoading = true;
     notifyListeners();
 
+    var cargado = false;
     try {
       final response = await _supabase.from('products').select().order('name');
       _products = response.map((map) => ProductModel.fromMap(map)).toList();
+      cargado = true;
 
       for (final prod in _products) {
         if (prod.stock > prod.minStock && prod.id != null) {
@@ -66,6 +83,7 @@ class ProductsProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+    return cargado;
   }
 
   Future<void> addProduct(ProductModel product) async {
