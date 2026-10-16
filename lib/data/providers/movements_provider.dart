@@ -109,10 +109,16 @@ class MovementsProvider with ChangeNotifier {
   /// Devuelve null si se guardó y, si no, el motivo listo para mostrar.
   /// Antes devolvía solo true/false y la pantalla decía "Stock insuficiente"
   /// ante cualquier fallo, incluso sin conexión o sin permisos.
+  ///
+  /// [photo] es la foto de una salida. Se sube antes de guardar el movimiento
+  /// para que este nazca ya con su ruta: los operadores pueden insertar
+  /// movimientos pero no modificarlos después.
   Future<String?> registerMovement(
     MovementModel movement, {
     bool showNotification = true,
     bool updateProductStock = true,
+    Uint8List? photo,
+    String photoExtension = 'jpg',
   }) async {
     try {
       // Si es una salida, validar stock suficiente
@@ -139,6 +145,14 @@ class MovementsProvider with ChangeNotifier {
       // Insertar el movimiento
       final data = movement.toMap();
       if (data['id'] == null) data['id'] = const Uuid().v4();
+
+      if (photo != null) {
+        data['photo_path'] = await _uploadPhoto(
+          data['id'] as String,
+          photo,
+          photoExtension,
+        );
+      }
 
       await _supabase.from('movements').insert(data);
 
@@ -180,11 +194,72 @@ class MovementsProvider with ChangeNotifier {
     }
   }
 
+  static const photoBucket = 'movement-photos';
+
+  static const _faltaScriptFotos =
+      'La base de datos no está lista para guardar el destino y la foto de '
+      'las salidas. Falta ejecutar supabase_salidas_foto_destino.sql en '
+      'Supabase.';
+
+  /// Sube la foto de una salida y devuelve su ruta en el bucket. Se agrupa
+  /// por mes para que el bucket se pueda revisar a mano sin perderse.
+  Future<String> _uploadPhoto(
+    String movementId,
+    Uint8List bytes,
+    String extension,
+  ) async {
+    final ext = extension.toLowerCase().replaceAll('.', '');
+    final mes = DateTime.now().toIso8601String().substring(0, 7);
+    final path = 'salidas/$mes/$movementId.$ext';
+    await _supabase.storage.from(photoBucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: ext == 'png'
+                ? 'image/png'
+                : ext == 'webp'
+                    ? 'image/webp'
+                    : 'image/jpeg',
+          ),
+        );
+    return path;
+  }
+
+  /// Enlace temporal para ver la foto de una salida. El bucket es privado:
+  /// el enlace caduca en una hora. Devuelve null si no se pudo generar.
+  Future<String?> photoUrl(String path) async {
+    try {
+      return await _supabase.storage
+          .from(photoBucket)
+          .createSignedUrl(path, 60 * 60);
+    } catch (e) {
+      debugPrint('No se pudo obtener la foto $path: $e');
+      return null;
+    }
+  }
+
   /// Traduce el error de Supabase a algo que quien registra pueda resolver.
   /// La detección de red sigue el mismo criterio que
   /// `UsersProvider.describeError`.
   static String _motivoDelFallo(Object e) {
+    if (e is StorageException) {
+      if (e.statusCode == '404' ||
+          e.message.toLowerCase().contains('bucket not found')) {
+        return _faltaScriptFotos;
+      }
+      if (e.statusCode == '403' || e.statusCode == '401') {
+        return 'Tu usuario no tiene permiso para subir la foto.';
+      }
+      if (e.statusCode == '413') {
+        return 'La foto es demasiado pesada. Toma otra.';
+      }
+      return 'No se pudo subir la foto: ${e.message}';
+    }
     if (e is PostgrestException) {
+      // La columna destination o photo_path todavía no existe.
+      if (e.code == 'PGRST204' || e.code == '42703') {
+        return _faltaScriptFotos;
+      }
       if (e.code == '42501') {
         return 'Tu usuario no tiene permiso para registrar movimientos.';
       }

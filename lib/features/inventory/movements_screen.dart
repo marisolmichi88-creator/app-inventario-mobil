@@ -103,6 +103,63 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
+  /// Muestra la foto de una salida. El bucket es privado, así que primero se
+  /// pide un enlace temporal y luego se descarga la imagen.
+  void _showPhoto(String path) {
+    final url = context.read<MovementsProvider>().photoUrl(path);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Stack(
+          children: [
+            FutureBuilder<String?>(
+              future: url,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final link = snapshot.data;
+                if (link == null) return const _PhotoError();
+                return InteractiveViewer(
+                  child: Image.network(
+                    link,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) =>
+                        progress == null
+                            ? child
+                            : const SizedBox(
+                                height: 300,
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                    errorBuilder: (context, error, stack) =>
+                        const _PhotoError(),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(dialogContext),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showFilterSheet() {
     final products = context.read<ProductsProvider>().products;
     final warehouses = context.read<WarehousesProvider>().warehouses;
@@ -754,6 +811,22 @@ class _MovementsScreenState extends State<MovementsScreen> {
                             ?.name ??
                         'Producto Desconocido';
 
+                    // En una salida importa a qué proyecto y a qué lugar fue.
+                    final destino = isEntry
+                        ? ''
+                        : [
+                            context
+                                .read<ProjectsProvider>()
+                                .projects
+                                .where((p) => p.id == mov.projectId)
+                                .firstOrNull
+                                ?.name,
+                            mov.destination,
+                          ]
+                            .whereType<String>()
+                            .where((s) => s.trim().isNotEmpty)
+                            .join(' · ');
+
                     DateTime parsedDate =
                         DateTime.tryParse(mov.date) ?? DateTime.now();
                     String formattedDate = DateFormat(
@@ -821,6 +894,58 @@ class _MovementsScreenState extends State<MovementsScreen> {
                                       fontSize: 11,
                                     ),
                                   ),
+                                  if (destino.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.place_outlined,
+                                          size: 14,
+                                          color: isDark
+                                              ? Colors.grey.shade400
+                                              : Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            destino,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark
+                                                  ? Colors.grey.shade300
+                                                  : Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  if (mov.photoPath != null) ...[
+                                    const SizedBox(height: 4),
+                                    TextButton.icon(
+                                      onPressed: () =>
+                                          _showPhoto(mov.photoPath!),
+                                      icon: const Icon(
+                                        Icons.photo_outlined,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Ver foto'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: actionColor,
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: const Size(0, 32),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        textStyle: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   if (mov.notes != null &&
                                       mov.notes!.isNotEmpty) ...[
                                     const SizedBox(height: 6),
@@ -1040,6 +1165,29 @@ class _MovementsScreenState extends State<MovementsScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Aviso dentro del visor cuando la foto no se pudo cargar (sin conexión, o
+/// el enlace temporal no se pudo generar).
+class _PhotoError extends StatelessWidget {
+  const _PhotoError();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 240,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'No se pudo cargar la foto. Revisa la conexión e intenta de nuevo.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70),
+          ),
         ),
       ),
     );

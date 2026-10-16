@@ -8,6 +8,13 @@ class MovementModel {
   final int quantity;
   final String date;
   final String? notes;
+
+  /// Lugar a donde va el material en una salida. Texto libre.
+  final String? destination;
+
+  /// Ruta de la foto de la salida dentro del bucket `movement-photos`.
+  final String? photoPath;
+
   final bool isSynced;
 
   MovementModel({
@@ -20,6 +27,8 @@ class MovementModel {
     required this.quantity,
     required this.date,
     this.notes,
+    this.destination,
+    this.photoPath,
     this.isSynced = false,
   });
 
@@ -34,6 +43,8 @@ class MovementModel {
       quantity: map['quantity'],
       date: map['date'] ?? map['created_at'],
       notes: map['notes'],
+      destination: map['destination'],
+      photoPath: map['photo_path'],
       isSynced: true, // No longer used
     );
   }
@@ -49,6 +60,10 @@ class MovementModel {
       'date': date,
       'notes': notes,
     };
+    // Solo se envían cuando tienen valor: así las entradas siguen guardándose
+    // en una base donde aún no se ejecutó supabase_salidas_foto_destino.sql.
+    if (destination != null) map['destination'] = destination;
+    if (photoPath != null) map['photo_path'] = photoPath;
     if (id != null) map['id'] = id;
     return map;
   }

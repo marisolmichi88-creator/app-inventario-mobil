@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/movement_model.dart';
 import '../../../data/providers/movements_provider.dart';
@@ -34,8 +36,57 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
 
   final quantityController = TextEditingController();
   final notesController = TextEditingController();
+  final destinationController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   bool _isLoading = true;
+
+  /// Mientras se sube la foto y se guarda: evita registrar dos veces la
+  /// misma salida por tocar Guardar de nuevo.
+  bool _isSaving = false;
+
+  /// Foto de lo que sale. En una salida es obligatoria: es la constancia de
+  /// qué se llevó cada quien.
+  Uint8List? _photo;
+  String _photoExtension = 'jpg';
+
+  @override
+  void dispose() {
+    quantityController.dispose();
+    notesController.dispose();
+    destinationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _takePhoto(FormFieldState<Uint8List> field) async {
+    try {
+      final shot = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        // Suficiente para reconocer el material y liviana para subirla con
+        // datos móviles desde la obra.
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 70,
+      );
+      if (shot == null) return;
+      final bytes = await shot.readAsBytes();
+      final name = shot.name.toLowerCase();
+      if (!mounted) return;
+      setState(() {
+        _photo = bytes;
+        _photoExtension = name.contains('.') ? name.split('.').last : 'jpg';
+      });
+      field.didChange(bytes);
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      CustomSnackBar.showError(
+        context,
+        e.code == 'camera_access_denied'
+            ? 'La app no tiene permiso para usar la cámara. Actívalo en los '
+                'ajustes del celular.'
+            : 'No se pudo abrir la cámara: ${e.message ?? e.code}',
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -314,6 +365,18 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       ),
                       const SizedBox(height: 16),
                     ],
+                    if (type == 'OUT') ...[
+                      _buildFormField(
+                        controller: destinationController,
+                        label: 'Destino / lugar a dónde va',
+                        hint: 'Ej. Obra Av. Grau, planta Chilca',
+                        icon: Icons.place_outlined,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPhotoField(isDark),
+                      const SizedBox(height: 16),
+                    ],
                     _buildFormField(
                       controller: quantityController,
                       label: 'Cantidad',
@@ -361,26 +424,36 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () async {
+                            onPressed: _isSaving
+                                ? null
+                                : () async {
                               if (formKey.currentState!.validate()) {
+                                final isOut = type == 'OUT';
                                 final mov = MovementModel(
                                   productId: selectedProductId!,
                                   warehouseId: selectedWarehouseId!,
-                                  projectId: type == 'OUT'
-                                      ? selectedProjectId
-                                      : null,
+                                  projectId: isOut ? selectedProjectId : null,
                                   userId: user.id!,
                                   type: type!,
                                   quantity: int.parse(quantityController.text),
                                   date: DateTime.now().toIso8601String(),
                                   notes: notesController.text.trim(),
+                                  destination: isOut
+                                      ? destinationController.text.trim()
+                                      : null,
                                 );
 
+                                setState(() => _isSaving = true);
                                 final error = await context
                                     .read<MovementsProvider>()
-                                    .registerMovement(mov);
+                                    .registerMovement(
+                                      mov,
+                                      photo: isOut ? _photo : null,
+                                      photoExtension: _photoExtension,
+                                    );
 
                                 if (context.mounted) {
+                                  setState(() => _isSaving = false);
                                   if (error == null) {
                                     Navigator.pop(context, true);
                                     CustomSnackBar.showSuccess(
@@ -404,10 +477,19 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                               ),
                               elevation: 0,
                             ),
-                            icon: const Icon(Icons.save_rounded, size: 20),
-                            label: const Text(
-                              'Guardar',
-                              style: TextStyle(
+                            icon: _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.save_rounded, size: 20),
+                            label: Text(
+                              _isSaving ? 'Guardando…' : 'Guardar',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -424,6 +506,89 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Foto obligatoria de la salida. Es un FormField para que el formulario
+  /// la valide junto con los demás campos al tocar Guardar.
+  Widget _buildPhotoField(bool isDark) {
+    final accent = isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD);
+    return FormField<Uint8List>(
+      initialValue: _photo,
+      validator: (val) =>
+          val == null ? 'Toma una foto de lo que sale' : null,
+      builder: (field) {
+        final borderColor = field.hasError
+            ? Theme.of(context).colorScheme.error
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_photo == null)
+              InkWell(
+                onTap: _isSaving ? null : () => _takePhoto(field),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 22),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.photo_camera_outlined, color: accent, size: 30),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tomar foto de lo que sale',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    Image.memory(
+                      _photo!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _isSaving ? null : () => _takePhoto(field),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Tomar otra'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (field.hasError)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, top: 6),
+                child: Text(
+                  field.errorText!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

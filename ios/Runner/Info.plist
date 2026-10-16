@@ -27,7 +27,7 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
-		<string>Proenergim stock usa la cámara para escanear códigos de productos.</string>
+		<string>Proenergim stock usa la cámara para escanear códigos de productos y fotografiar el material que sale.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

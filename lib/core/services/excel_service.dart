@@ -76,7 +76,8 @@ class ExcelService {
         'Tipo',
         'Cantidad',
         'Almacén',
-        'Proyecto / Destino',
+        'Proyecto',
+        'Destino',
         'Usuario',
         'Observación',
       ],
@@ -102,6 +103,7 @@ class ExcelService {
         mov.quantity,
         warehouseName,
         projectName,
+        mov.destination ?? '',
         userName,
         mov.notes ?? '',
       ]);
