@@ -78,22 +78,43 @@ class _AppWithTheme extends StatefulWidget {
   State<_AppWithTheme> createState() => _AppWithThemeState();
 }
 
-class _AppWithThemeState extends State<_AppWithTheme> {
+class _AppWithThemeState extends State<_AppWithTheme>
+    with WidgetsBindingObserver {
   late final GoRouter _router;
+  RealtimeChannel? _realtimeChannel;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = AppRouter.createRouter(context);
 
     // Iniciar suscripción en tiempo real de Supabase nativa
-    Supabase.instance.client
+    _realtimeChannel = Supabase.instance.client
         .channel('public:all')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           callback: (payload) {
             if (mounted) {
+              if (payload.table == 'user_profiles') {
+                final authProvider = context.read<AuthProvider>();
+                final newRecord = payload.newRecord;
+                final authUserId = authProvider.currentUser?.authUserId;
+                if (authUserId != null &&
+                    newRecord['auth_user_id'] == authUserId) {
+                  final serverToken =
+                      newRecord['current_session_token'] as String?;
+                  if (serverToken != null &&
+                      serverToken.isNotEmpty &&
+                      authProvider.localSessionToken != null &&
+                      serverToken != authProvider.localSessionToken) {
+                    authProvider.forceLogoutDueOtherDevice();
+                    return;
+                  }
+                }
+              }
+
               context.read<ProductsProvider>().fetchProducts();
               context.read<CategoriesProvider>().fetchCategories();
               context.read<UsersProvider>().fetchUsers();
@@ -104,6 +125,22 @@ class _AppWithThemeState extends State<_AppWithTheme> {
           },
         )
         .subscribe();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        context.read<AuthProvider>().validateCurrentSession();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
   }
 
   @override

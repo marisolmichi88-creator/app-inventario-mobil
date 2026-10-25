@@ -19,10 +19,71 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _errorMessage;
   bool _obscurePassword = true;
+  bool _showingKickoutDialog = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _checkAndShowKickoutDialog(String message) {
+    if (_showingKickoutDialog) return;
+    _showingKickoutDialog = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) => AlertDialog(
+          icon: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade900.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.phonelink_erase_rounded,
+              color: Colors.amber,
+              size: 40,
+            ),
+          ),
+          title: const Text(
+            'Sesión en otro dispositivo',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, height: 1.4),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogCtx).pop();
+                if (mounted) {
+                  context.read<AuthProvider>().clearKickoutMessage();
+                }
+              },
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      _showingKickoutDialog = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+
+    if (authProvider.kickoutMessage != null && !_showingKickoutDialog) {
+      _checkAndShowKickoutDialog(authProvider.kickoutMessage!);
+    }
 
     return Scaffold(
       body: Center(
@@ -74,6 +135,60 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
                   ),
                   const SizedBox(height: 32),
+
+                  if (authProvider.kickoutMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade900.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.amber.shade400, width: 1.5),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.amber,
+                            size: 26,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Se ha iniciado sesión en otro teléfono',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  authProvider.kickoutMessage!,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade200,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
+                            onPressed: () => authProvider.clearKickoutMessage(),
+                            tooltip: 'Cerrar aviso',
+                          ),
+                        ],
+                      ),
+                    ),
 
                   if (_errorMessage != null)
                     Container(

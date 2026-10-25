@@ -6,6 +6,7 @@ class UserModel {
   final String password;
   final String role; // 'admin' o 'operador'
   final bool isActive;
+  final String? currentSessionToken;
 
   UserModel({
     this.id,
@@ -15,6 +16,7 @@ class UserModel {
     required this.password,
     required this.role,
     this.isActive = true,
+    this.currentSessionToken,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,7 @@ class UserModel {
       password: map['password'] ?? '',
       role: map['role'] ?? 'operador',
       isActive: map['is_active'] == 1 || map['is_active'] == true,
+      currentSessionToken: map['current_session_token'],
     );
   }
 
@@ -37,6 +40,8 @@ class UserModel {
       'email': email,
       'role': role,
       'is_active': isActive,
+      if (currentSessionToken != null) 'current_session_token': currentSessionToken,
     };
   }
 }
+

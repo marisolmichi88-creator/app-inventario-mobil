@@ -1,16 +1,28 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../../data/models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _lastLoginError;
+  String? _localSessionToken;
+  String? _kickoutMessage;
+  RealtimeChannel? _sessionSubscription;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _currentUser != null;
   String? get lastLoginError => _lastLoginError;
+  String? get kickoutMessage => _kickoutMessage;
+  String? get localSessionToken => _localSessionToken;
+
+  void clearKickoutMessage() {
+    _kickoutMessage = null;
+    notifyListeners();
+  }
 
   Future<void> checkAuthStatus() async {
     _isLoading = true;
@@ -32,6 +44,41 @@ class AuthProvider with ChangeNotifier {
         final profile = profiles.isEmpty ? null : profiles.first;
 
         if (profile != null && profile['is_active'] == true) {
+          final prefs = await SharedPreferences.getInstance();
+          final savedToken = prefs.getString('local_session_token');
+          final serverToken = profile['current_session_token'] as String?;
+
+          // Si el token del servidor es diferente del guardado en este teléfono,
+          // significa que alguien inició sesión en otro dispositivo mientras
+          // esta app estaba cerrada o en segundo plano.
+          if (serverToken != null &&
+              serverToken.isNotEmpty &&
+              savedToken != null &&
+              savedToken.isNotEmpty &&
+              serverToken != savedToken) {
+            await forceLogoutDueOtherDevice();
+            _isLoading = false;
+            notifyListeners();
+            return;
+          }
+
+          if (savedToken != null && savedToken.isNotEmpty) {
+            _localSessionToken = savedToken;
+          } else {
+            // Primera vez o token no registrado localmente
+            final newToken = const Uuid().v4();
+            _localSessionToken = newToken;
+            await prefs.setString('local_session_token', newToken);
+            try {
+              await Supabase.instance.client.rpc(
+                'set_my_session_token',
+                params: {'p_token': newToken},
+              );
+            } catch (e) {
+              debugPrint('Error registrando token de sesión inicial: $e');
+            }
+          }
+
           _currentUser = UserModel(
             id: profile['id'],
             authUserId: authUser.id,
@@ -40,7 +87,10 @@ class AuthProvider with ChangeNotifier {
             password: '', // Password is not returned
             role: profile['role'],
             isActive: profile['is_active'] == true,
+            currentSessionToken: _localSessionToken,
           );
+
+          _subscribeToSessionChanges(authUser.id);
         } else {
           await logout();
         }
@@ -56,11 +106,13 @@ class AuthProvider with ChangeNotifier {
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _lastLoginError = null;
+    _kickoutMessage = null;
     notifyListeners();
 
     try {
+      final normalizedEmail = email.trim().toLowerCase();
       final AuthResponse res = await Supabase.instance.client.auth
-          .signInWithPassword(email: email, password: password);
+          .signInWithPassword(email: normalizedEmail, password: password.trim());
 
       final authUser = res.user;
       if (authUser != null) {
@@ -75,6 +127,21 @@ class AuthProvider with ChangeNotifier {
         final profile = profiles.isEmpty ? null : profiles.first;
 
         if (profile != null && profile['is_active'] == true) {
+          // Generar nuevo token único de sesión para este dispositivo
+          final newSessionToken = const Uuid().v4();
+          _localSessionToken = newSessionToken;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('local_session_token', newSessionToken);
+
+          try {
+            await Supabase.instance.client.rpc(
+              'set_my_session_token',
+              params: {'p_token': newSessionToken},
+            );
+          } catch (e) {
+            debugPrint('Error al registrar session token en base de datos: $e');
+          }
+
           _currentUser = UserModel(
             id: profile['id'],
             authUserId: authUser.id,
@@ -83,7 +150,10 @@ class AuthProvider with ChangeNotifier {
             password: '',
             role: profile['role'],
             isActive: profile['is_active'] == true,
+            currentSessionToken: newSessionToken,
           );
+
+          _subscribeToSessionChanges(authUser.id);
 
           _isLoading = false;
           notifyListeners();
@@ -116,12 +186,108 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
+  void _subscribeToSessionChanges(String authUserId) {
+    _sessionSubscription?.unsubscribe();
+    _sessionSubscription = Supabase.instance.client
+        .channel('session_watch:$authUserId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'user_profiles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'auth_user_id',
+            value: authUserId,
+          ),
+          callback: (payload) {
+            final newRecord = payload.newRecord;
+            final serverToken = newRecord['current_session_token'] as String?;
+            debugPrint(
+              'Realtime session watch: server=$serverToken, local=$_localSessionToken',
+            );
+            if (serverToken != null &&
+                serverToken.isNotEmpty &&
+                _localSessionToken != null &&
+                serverToken != _localSessionToken) {
+              // Se inició sesión en otro dispositivo con esta misma cuenta
+              forceLogoutDueOtherDevice();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Comprueba con el servidor si la sesión sigue siendo válida en este dispositivo.
+  /// Se ejecuta al reanudar la app desde segundo plano o antes de acciones críticas.
+  Future<bool> validateCurrentSession() async {
+    if (_currentUser == null || _localSessionToken == null) return true;
+    try {
+      final serverToken = await Supabase.instance.client.rpc('get_my_session_token');
+      if (serverToken != null &&
+          serverToken.toString().isNotEmpty &&
+          serverToken.toString() != _localSessionToken) {
+        await forceLogoutDueOtherDevice();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error comprobando sesión única: $e');
+    }
+    return true;
+  }
+
+  /// Cierra forzosamente la sesión porque la cuenta fue abierta en otro teléfono.
+  Future<void> forceLogoutDueOtherDevice() async {
+    debugPrint('Cierre forzado: cuenta iniciada en otro dispositivo.');
+    _kickoutMessage =
+        'Se ha iniciado sesión en otro teléfono.\n\n'
+        'Por seguridad, cada usuario debe manejar sus propias credenciales '
+        'y no compartirlas.';
+    _localSessionToken = null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('local_session_token');
+    } catch (_) {}
+
+    try {
+      await _sessionSubscription?.unsubscribe();
+    } catch (_) {}
+    _sessionSubscription = null;
+
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
+
+    _currentUser = null;
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
+    try {
+      await _sessionSubscription?.unsubscribe();
+    } catch (_) {}
+    _sessionSubscription = null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('local_session_token');
+    } catch (_) {}
+
+    _localSessionToken = null;
     await Supabase.instance.client.auth.signOut();
     _currentUser = null;
     _lastLoginError = null;
+    _kickoutMessage = null;
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    _sessionSubscription?.unsubscribe();
+    super.dispose();
+  }
+
 
   /// Actualiza el perfil propio. El correo viaja por la Edge Function porque
   /// vive en Supabase Auth: cambiarlo solo en `user_profiles` dejaría la
