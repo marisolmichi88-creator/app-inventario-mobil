@@ -131,6 +131,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     String? status = project?.status;
     final formKey = GlobalKey<FormState>();
 
+    bool isSaving = false;
+    String? sheetError;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -180,19 +183,52 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
-                          if (isEditing)
-                            adminDeleteButton(
-                              tooltip: 'Eliminar proyecto',
-                              onPressed: () =>
-                                  _confirmDeleteProject(context, project),
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isEditing)
+                                adminDeleteButton(
+                                  tooltip: 'Eliminar proyecto',
+                                  onPressed: isSaving
+                                      ? null
+                                      : () => _confirmDeleteProject(context, project),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: isSaving ? null : () => Navigator.pop(context),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
+                      if (sheetError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  sheetError!,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildFormField(
                         controller: nameController,
                         label: 'Nombre del Proyecto',
@@ -329,7 +365,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         children: [
                           Expanded(
                             child: TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: isSaving ? null : () => Navigator.pop(context),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -347,27 +383,53 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                if (formKey.currentState!.validate()) {
-                                  final newProject = ProjectModel(
-                                    id: project?.id,
-                                    name: nameController.text.trim(),
-                                    client: clientController.text.trim(),
-                                    description: descController.text.trim(),
-                                    startDate: startDateController.text.trim(),
-                                    endDate: endDateController.text.trim(),
-                                    status: status!,
-                                    budget: double.tryParse(budgetController.text.trim()) ?? 0.0,
-                                  );
-                                  
-                                  if (isEditing) {
-                                    context.read<ProjectsProvider>().updateProject(newProject);
-                                  } else {
-                                    context.read<ProjectsProvider>().addProject(newProject);
-                                  }
-                                  Navigator.pop(context);
-                                }
-                              },
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      if (formKey.currentState!.validate()) {
+                                        setState(() {
+                                          isSaving = true;
+                                          sheetError = null;
+                                        });
+
+                                        final newProject = ProjectModel(
+                                          id: project?.id,
+                                          name: nameController.text.trim(),
+                                          client: clientController.text.trim(),
+                                          description: descController.text.trim(),
+                                          startDate: startDateController.text.trim(),
+                                          endDate: endDateController.text.trim(),
+                                          status: status!,
+                                          budget: double.tryParse(budgetController.text.trim()) ?? 0.0,
+                                        );
+
+                                        final error = isEditing
+                                            ? await context
+                                                .read<ProjectsProvider>()
+                                                .updateProject(newProject)
+                                            : await context
+                                                .read<ProjectsProvider>()
+                                                .addProject(newProject);
+
+                                        if (!context.mounted) return;
+
+                                        if (error != null) {
+                                          setState(() {
+                                            isSaving = false;
+                                            sheetError = error;
+                                          });
+                                          CustomSnackBar.showError(context, error);
+                                        } else {
+                                          Navigator.pop(context);
+                                          CustomSnackBar.showSuccess(
+                                            context,
+                                            isEditing
+                                                ? 'Proyecto actualizado'
+                                                : 'Proyecto creado exitosamente',
+                                          );
+                                        }
+                                      }
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
                                 foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -375,8 +437,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: 0,
                               ),
-                              icon: const Icon(Icons.save_rounded, size: 20),
-                              label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_rounded, size: 20),
+                              label: Text(
+                                isSaving ? 'Guardando...' : 'Guardar',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
                             ),
                           ),
                         ],

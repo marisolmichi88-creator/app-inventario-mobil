@@ -171,6 +171,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final nameController = TextEditingController(text: category?.name ?? '');
     final descController = TextEditingController(text: category?.description ?? '');
     final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+    String? sheetError;
 
     showModalBottomSheet(
       context: context,
@@ -179,7 +181,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         
-        return Container(
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0F172A) : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -232,13 +236,40 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             ),
                           IconButton(
                             icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: isSaving ? null : () => Navigator.pop(context),
                           ),
                         ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
+                  if (sheetError != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              sheetError!,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildFormField(
                     controller: nameController,
                     label: 'Nombre de la Categoría',
@@ -272,7 +303,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     children: [
                       Expanded(
                         child: TextButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: isSaving ? null : () => Navigator.pop(context),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -290,42 +321,48 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            if (!formKey.currentState!.validate()) return;
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) return;
 
-                            final newCategory = CategoryModel(
-                              id: category?.id,
-                              name: nameController.text.trim(),
-                              description: descController.text.trim(),
-                              isActive: category?.isActive ?? true,
-                            );
-                            final provider = context
-                                .read<CategoriesProvider>();
+                                  setSheetState(() {
+                                    isSaving = true;
+                                    sheetError = null;
+                                  });
 
-                            try {
-                              if (isEditing) {
-                                await provider.updateCategory(newCategory);
-                              } else {
-                                await provider.addCategory(newCategory);
-                              }
-                              if (!context.mounted) return;
-                              CustomSnackBar.showSuccess(
-                                context,
-                                isEditing
-                                    ? 'Categoría actualizada'
-                                    : 'Categoría creada',
-                              );
-                              Navigator.pop(context);
-                            } catch (e) {
-                              // Antes se cerraba la hoja pasara lo que pasara,
-                              // así que un guardado fallido parecía exitoso.
-                              if (!context.mounted) return;
-                              CustomSnackBar.showError(
-                                context,
-                                e.toString().replaceAll('Exception: ', ''),
-                              );
-                            }
-                          },
+                                  final newCategory = CategoryModel(
+                                    id: category?.id,
+                                    name: nameController.text.trim(),
+                                    description: descController.text.trim(),
+                                    isActive: category?.isActive ?? true,
+                                  );
+                                  final provider = context.read<CategoriesProvider>();
+
+                                  try {
+                                    if (isEditing) {
+                                      await provider.updateCategory(newCategory);
+                                    } else {
+                                      await provider.addCategory(newCategory);
+                                    }
+                                    if (!context.mounted) return;
+                                    CustomSnackBar.showSuccess(
+                                      context,
+                                      isEditing
+                                          ? 'Categoría actualizada'
+                                          : 'Categoría creada exitosamente',
+                                    );
+                                    Navigator.pop(context);
+                                  } catch (e) {
+                                    final msg = e.toString().replaceAll('Exception: ', '');
+                                    if (!context.mounted) return;
+                                    setSheetState(() {
+                                      isSaving = false;
+                                      sheetError = msg;
+                                    });
+                                    CustomSnackBar.showError(context, msg);
+                                  }
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
                             foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -333,8 +370,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
-                          icon: const Icon(Icons.save_rounded, size: 20),
-                          label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          icon: isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save_rounded, size: 20),
+                          label: Text(
+                            isSaving ? 'Guardando...' : 'Guardar',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
                         ),
                       ),
                     ],
@@ -346,7 +395,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         );
       },
-    );
+      );
+    },
+  );
   }
 
   @override

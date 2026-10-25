@@ -77,6 +77,7 @@ class ProductModel {
       'min_stock': minStock,
       'unit': unit,
       'price': price,
+      'cost': price,
       'currency': currency,
       'is_active': isActive,
     };

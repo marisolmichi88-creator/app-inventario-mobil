@@ -86,40 +86,69 @@ class ProductsProvider with ChangeNotifier {
     return cargado;
   }
 
-  Future<void> addProduct(ProductModel product) async {
+  Future<String?> addProduct(ProductModel product) async {
     final data = product.toMap();
     if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
       await _supabase.from('products').insert(data);
       await fetchProducts();
+      return null;
     } catch (e) {
       debugPrint('Error adding product, retrying without warehouse_id: $e');
       data.remove('warehouse_id');
       try {
         await _supabase.from('products').insert(data);
         await fetchProducts();
+        return null;
       } catch (e2) {
         debugPrint('Error adding product: $e2');
+        return _formatError(e2);
       }
     }
   }
 
-  Future<void> updateProduct(ProductModel product) async {
+  Future<String?> updateProduct(ProductModel product) async {
     final data = product.toMap();
     data.remove('id');
     try {
       await _supabase.from('products').update(data).eq('id', product.id!);
       await fetchProducts();
+      return null;
     } catch (e) {
       debugPrint('Error updating product, retrying without warehouse_id: $e');
       data.remove('warehouse_id');
       try {
         await _supabase.from('products').update(data).eq('id', product.id!);
         await fetchProducts();
+        return null;
       } catch (e2) {
         debugPrint('Error updating product: $e2');
+        return _formatError(e2);
       }
     }
+  }
+
+  static String _formatError(Object e) {
+    if (e is PostgrestException) {
+      if (e.code == '23505') {
+        if (e.message.contains('products_code_key') ||
+            e.message.contains('products_code_unique')) {
+          return 'Ya existe un producto registrado con este código.';
+        }
+        if (e.message.contains('products_internal_qr_unique')) {
+          return 'Ya existe un producto con este código QR interno.';
+        }
+        if (e.message.contains('products_serial_number_key')) {
+          return 'Ya existe un producto con este número de serie.';
+        }
+        return 'Ya existe un producto con estos datos duplicados.';
+      }
+      if (e.code == '42501') {
+        return 'No tienes permisos para modificar el inventario. Inicia sesión.';
+      }
+      return e.message;
+    }
+    return 'No se pudo guardar el producto. Verifica tu conexión a internet.';
   }
   
   /// Suma o resta stock de un producto.

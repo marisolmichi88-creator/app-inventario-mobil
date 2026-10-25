@@ -238,7 +238,7 @@ Widget adminFab({
 
 /// Botón de eliminar para los formularios de administración.
 Widget adminDeleteButton({
-  required VoidCallback onPressed,
+  VoidCallback? onPressed,
   String tooltip = 'Eliminar',
 }) {
   return IconButton(

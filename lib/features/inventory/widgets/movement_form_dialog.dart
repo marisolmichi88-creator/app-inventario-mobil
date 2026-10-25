@@ -14,12 +14,14 @@ class MovementFormDialog extends StatefulWidget {
   final String? prefilledCode;
   final String? prefilledProjectId;
   final String? prefilledType;
+  final String? prefilledWarehouseId;
 
   const MovementFormDialog({
     super.key,
     this.prefilledCode,
     this.prefilledProjectId,
     this.prefilledType,
+    this.prefilledWarehouseId,
   });
 
   @override
@@ -48,6 +50,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
   /// qué se llevó cada quien.
   Uint8List? _photo;
   String _photoExtension = 'jpg';
+  String? _errorBanner;
 
   @override
   void dispose() {
@@ -109,19 +112,27 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
         final products = productsProvider.products
             .where((p) => p.isActive)
             .toList();
+        final warehouses = warehousesProvider.warehouses
+            .where((w) => w.isActive)
+            .toList();
 
         if (products.isNotEmpty) {
           if (widget.prefilledCode != null) {
-            selectedProductId = ProductsProvider.findByCode(
+            final foundProd = ProductsProvider.findByCode(
               products,
               widget.prefilledCode!,
-            )?.id;
+            );
+            selectedProductId = foundProd?.id;
+            selectedWarehouseId = widget.prefilledWarehouseId ??
+                foundProd?.warehouseId ??
+                (warehouses.length == 1 ? warehouses.first.id : null);
           } else {
             selectedProductId = null;
+            selectedWarehouseId = widget.prefilledWarehouseId ??
+                (warehouses.length == 1 ? warehouses.first.id : null);
           }
         }
 
-        selectedWarehouseId = null;
         selectedProjectId = widget.prefilledProjectId;
         type = widget.prefilledType;
         selectedUserId = context.read<AuthProvider>().currentUser?.id;
@@ -236,6 +247,39 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (_errorBanner != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.redAccent.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Colors.redAccent,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorBanner!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     _buildDropdownField<String>(
                       label: 'Tipo de Movimiento',
                       icon: Icons.swap_vert,
@@ -292,8 +336,15 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                             ),
                           )
                           .toList(),
-                      onChanged: (val) =>
-                          setState(() => selectedProductId = val),
+                      onChanged: (val) {
+                        setState(() {
+                          selectedProductId = val;
+                          final prod = products.where((p) => p.id == val).firstOrNull;
+                          if (prod?.warehouseId != null && selectedWarehouseId == null) {
+                            selectedWarehouseId = prod!.warehouseId;
+                          }
+                        });
+                      },
                       hint: Text(
                         'Seleccione un producto',
                         style: TextStyle(
@@ -384,6 +435,7 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                       icon: Icons.tag,
                       isDark: isDark,
                       isNumber: true,
+                      autofocus: widget.prefilledCode != null,
                     ),
                     const SizedBox(height: 16),
                     _buildFormField(
@@ -453,7 +505,10 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
                                     );
 
                                 if (context.mounted) {
-                                  setState(() => _isSaving = false);
+                                  setState(() {
+                                    _isSaving = false;
+                                    _errorBanner = error;
+                                  });
                                   if (error == null) {
                                     Navigator.pop(context, true);
                                     CustomSnackBar.showSuccess(
@@ -601,9 +656,11 @@ class _MovementFormDialogState extends State<MovementFormDialog> {
     bool isNumber = false,
     bool isRequired = true,
     int maxLines = 1,
+    bool autofocus = false,
   }) {
     return TextFormField(
       controller: controller,
+      autofocus: autofocus,
       keyboardType: isNumber
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,

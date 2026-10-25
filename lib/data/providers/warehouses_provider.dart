@@ -85,26 +85,43 @@ class WarehousesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addWarehouse(WarehouseModel warehouse) async {
+  Future<String?> addWarehouse(WarehouseModel warehouse) async {
     try {
       final data = warehouse.toMap();
       if (data['id'] == null) data['id'] = const Uuid().v4();
       await _supabase.from('warehouses').insert(data);
       await fetchWarehouses();
+      return null;
     } catch (e) {
       debugPrint('Error adding warehouse: $e');
+      return _formatError(e);
     }
   }
 
-  Future<void> updateWarehouse(WarehouseModel warehouse) async {
+  Future<String?> updateWarehouse(WarehouseModel warehouse) async {
     try {
       final data = warehouse.toMap();
       data.remove('id');
       await _supabase.from('warehouses').update(data).eq('id', warehouse.id!);
       await fetchWarehouses();
+      return null;
     } catch (e) {
       debugPrint('Error updating warehouse: $e');
+      return _formatError(e);
     }
+  }
+
+  static String _formatError(Object e) {
+    if (e is PostgrestException) {
+      if (e.code == '23505') {
+        return 'Ya existe un almacén con este nombre.';
+      }
+      if (e.code == '42501') {
+        return 'No tienes permisos para modificar almacenes. Inicia sesión.';
+      }
+      return e.message;
+    }
+    return 'No se pudo guardar el almacén. Verifica tu conexión.';
   }
 
   /// Elimina un almacén solo si está vacío.

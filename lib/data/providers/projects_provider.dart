@@ -27,42 +27,61 @@ class ProjectsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addProject(ProjectModel project) async {
+  Future<String?> addProject(ProjectModel project) async {
     final data = project.toMap();
     if (data['id'] == null) data['id'] = const Uuid().v4();
     try {
       await _supabase.from('projects').insert(data);
+      await fetchProjects();
+      return null;
     } catch (e) {
-      // Si la columna 'client' o 'budget' aún no existe en la BD, reintenta sin ellas
-      // para no romper la creación del proyecto.
       debugPrint('Insert proyecto: reintentando sin budget/client. Detalle: $e');
       data.remove('client');
       data.remove('budget');
       try {
         await _supabase.from('projects').insert(data);
+        await fetchProjects();
+        return null;
       } catch (e2) {
         debugPrint('Error adding project: $e2');
+        return _formatError(e2);
       }
     }
-    await fetchProjects();
   }
 
-  Future<void> updateProject(ProjectModel project) async {
+  Future<String?> updateProject(ProjectModel project) async {
     final data = project.toMap();
     data.remove('id');
     try {
       await _supabase.from('projects').update(data).eq('id', project.id!);
+      await fetchProjects();
+      return null;
     } catch (e) {
       debugPrint('Update proyecto: reintentando sin budget/client. Detalle: $e');
       data.remove('client');
       data.remove('budget');
       try {
         await _supabase.from('projects').update(data).eq('id', project.id!);
+        await fetchProjects();
+        return null;
       } catch (e2) {
         debugPrint('Error updating project: $e2');
+        return _formatError(e2);
       }
     }
-    await fetchProjects();
+  }
+
+  static String _formatError(Object e) {
+    if (e is PostgrestException) {
+      if (e.code == '23505') {
+        return 'Ya existe un proyecto con este nombre.';
+      }
+      if (e.code == '42501') {
+        return 'No tienes permisos para modificar proyectos. Inicia sesión.';
+      }
+      return e.message;
+    }
+    return 'No se pudo guardar el proyecto. Verifica tu conexión.';
   }
 
   /// Elimina un proyecto solo si no tiene movimientos asociados.

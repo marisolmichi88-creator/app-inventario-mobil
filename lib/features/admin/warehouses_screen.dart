@@ -462,6 +462,9 @@ class _WarehousesScreenState extends State<WarehousesScreen> {
     final locationController = TextEditingController(text: warehouse?.location ?? '');
     final formKey = GlobalKey<FormState>();
 
+    bool isSaving = false;
+    String? sheetError;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -469,140 +472,212 @@ class _WarehousesScreenState extends State<WarehousesScreen> {
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 16,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 16,
+              ),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        isEditing ? 'Editar Almacén' : 'Nuevo Almacén',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Theme.of(context).colorScheme.onSurface,
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 24),
                       Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (isEditing)
-                            adminDeleteButton(
-                              tooltip: 'Eliminar almacén',
-                              onPressed: () =>
-                                  _confirmDeleteWarehouse(context, warehouse),
+                          Text(
+                            isEditing ? 'Editar Almacén' : 'Nuevo Almacén',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isEditing)
+                                adminDeleteButton(
+                                  tooltip: 'Eliminar almacén',
+                                  onPressed: isSaving
+                                      ? null
+                                      : () => _confirmDeleteWarehouse(context, warehouse),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: isSaving ? null : () => Navigator.pop(context),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFormField(
-                    controller: nameController,
-                    label: 'Nombre del Almacén',
-                    hint: 'Ej. Bodega Principal',
-                    icon: Icons.warehouse_outlined,
-                    isDark: isDark,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFormField(
-                    controller: locationController,
-                    label: 'Ubicación / Detalles (Opcional)',
-                    hint: 'Ej. Av. Principal 123, Sector Norte',
-                    icon: Icons.location_on_outlined,
-                    isDark: isDark,
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 24),
-                  Divider(color: Colors.grey.withValues(alpha: 0.2)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 24),
+                      if (sheetError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
                           ),
-                          child: Text(
-                            'Cancelar',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  sheetError!,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildFormField(
+                        controller: nameController,
+                        label: 'Nombre del Almacén',
+                        hint: 'Ej. Bodega Principal',
+                        icon: Icons.warehouse_outlined,
+                        isDark: isDark,
+                        enabled: !isSaving,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        controller: locationController,
+                        label: 'Ubicación / Detalles (Opcional)',
+                        hint: 'Ej. Av. Principal 123, Sector Norte',
+                        icon: Icons.location_on_outlined,
+                        isDark: isDark,
+                        maxLines: 2,
+                        enabled: !isSaving,
+                      ),
+                      const SizedBox(height: 24),
+                      Divider(color: Colors.grey.withValues(alpha: 0.2)),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text(
+                                'Cancelar',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (formKey.currentState!.validate()) {
-                              final newWarehouse = WarehouseModel(
-                                id: warehouse?.id,
-                                name: nameController.text.trim(),
-                                location: locationController.text.trim(),
-                                isActive: warehouse?.isActive ?? true,
-                              );
-                              
-                              if (isEditing) {
-                                context.read<WarehousesProvider>().updateWarehouse(newWarehouse);
-                              } else {
-                                context.read<WarehousesProvider>().addWarehouse(newWarehouse);
-                              }
-                              Navigator.pop(context);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
-                            foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      if (formKey.currentState!.validate()) {
+                                        setSheetState(() {
+                                          isSaving = true;
+                                          sheetError = null;
+                                        });
+
+                                        final newWarehouse = WarehouseModel(
+                                          id: warehouse?.id,
+                                          name: nameController.text.trim(),
+                                          location: locationController.text.trim(),
+                                          isActive: warehouse?.isActive ?? true,
+                                        );
+
+                                        final error = isEditing
+                                            ? await context
+                                                .read<WarehousesProvider>()
+                                                .updateWarehouse(newWarehouse)
+                                            : await context
+                                                .read<WarehousesProvider>()
+                                                .addWarehouse(newWarehouse);
+
+                                        if (!context.mounted) return;
+
+                                        if (error != null) {
+                                          setSheetState(() {
+                                            isSaving = false;
+                                            sheetError = error;
+                                          });
+                                          CustomSnackBar.showError(context, error);
+                                        } else {
+                                          Navigator.pop(context);
+                                          CustomSnackBar.showSuccess(
+                                            context,
+                                            isEditing
+                                                ? 'Almacén actualizado'
+                                                : 'Almacén creado exitosamente',
+                                          );
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1959AD),
+                                foregroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_rounded, size: 20),
+                              label: Text(
+                                isSaving ? 'Guardando...' : 'Guardar',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
                           ),
-                          icon: const Icon(Icons.save_rounded, size: 20),
-                          label: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
+                        ],
                       ),
+                      const SizedBox(height: 24),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );

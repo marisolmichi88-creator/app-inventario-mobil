@@ -16,6 +16,7 @@ import '../../core/services/excel_service.dart';
 import '../../core/services/stock_calculator.dart';
 import '../../features/auth/auth_provider.dart';
 import '../scanner/scanner_screen.dart';
+import 'widgets/movement_form_dialog.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({
@@ -233,6 +234,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Future<void> _quickRestock(ProductModel product) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: MovementFormDialog(
+          prefilledCode: product.code,
+          prefilledWarehouseId: product.warehouseId,
+          prefilledType: 'IN',
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      context.read<MovementsProvider>().fetchMovements();
+      context.read<ProductsProvider>().fetchProducts();
+    }
+  }
+
   void _showProductForm({
     ProductModel? product,
     String? prefilledCode,
@@ -261,16 +284,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
       text: _attributesToText(product?.visibleAttributes ?? const {}),
     );
     final stockController = TextEditingController(
-      text: product?.stock.toString() ?? '',
+      text: product?.stock.toString() ?? '0',
     );
     final minStockController = TextEditingController(
       text: product?.minStock.toString() ?? '5',
     );
     final unitController = TextEditingController(text: product?.unit ?? 'UND');
     final priceController = TextEditingController(
-      text: product?.price.toString() ?? '',
+      text: product != null && product.price > 0 ? product.price.toString() : '',
     );
     final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+    String? sheetError;
 
     showModalBottomSheet(
       context: context,
@@ -288,10 +313,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
             .toList();
         String selectedCurrency = product?.currency ?? 'PEN';
         String? selectedCategoryId = product?.categoryId;
-        String? selectedWarehouseId = product?.warehouseId;
+        String? selectedWarehouseId = product?.warehouseId ??
+            (warehouses.isNotEmpty ? warehouses.first.id : null);
         if (selectedWarehouseId != null &&
             !warehouses.any((w) => w.id == selectedWarehouseId)) {
-          selectedWarehouseId = null;
+          selectedWarehouseId =
+              warehouses.isNotEmpty ? warehouses.first.id : null;
         }
 
         return StatefulBuilder(
@@ -351,13 +378,40 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.close),
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: isSaving ? null : () => Navigator.pop(context),
                               ),
                             ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
+                      if (sheetError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  sheetError!,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildFormField(
                         controller: codeController,
                         label: 'Código de fábrica / SKU',
@@ -596,6 +650,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               isNumber: true,
                               isDark: isDark,
                               enabled: isAdmin && !isEditing,
+                              isRequired: false,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -608,6 +663,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               isNumber: true,
                               isDark: isDark,
                               enabled: isAdmin,
+                              isRequired: false,
                             ),
                           ),
                         ],
@@ -712,6 +768,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               icon: Icons.straighten,
                               isDark: isDark,
                               enabled: isAdmin,
+                              isRequired: false,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -778,6 +835,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         isNumber: true,
                         isDark: isDark,
                         enabled: isAdmin,
+                        isRequired: false,
                       ),
                       if (isEditing) ...[
                         const SizedBox(height: 16),
@@ -853,6 +911,51 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             },
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await showModalBottomSheet<bool>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (ctx) => Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                                  ),
+                                  child: MovementFormDialog(
+                                    prefilledCode: product.code,
+                                    prefilledWarehouseId: product.warehouseId,
+                                    prefilledType: 'IN',
+                                  ),
+                                ),
+                              );
+                              if (context.mounted) {
+                                context.read<MovementsProvider>().fetchMovements();
+                                context.read<ProductsProvider>().fetchProducts();
+                              }
+                            },
+                            icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                            label: const Text(
+                              'Reabastecer / Registrar Entrada',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: isDark
+                                  ? const Color(0xFF16A34A).withValues(alpha: 0.25)
+                                  : const Color(0xFFDCFCE7),
+                              foregroundColor: isDark
+                                  ? const Color(0xFF4ADE80)
+                                  : const Color(0xFF15803D),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                       const SizedBox(height: 16),
                       Divider(color: Colors.grey.withValues(alpha: 0.2)),
@@ -861,7 +964,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         children: [
                           Expanded(
                             child: TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: isSaving ? null : () => Navigator.pop(context),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 16,
@@ -886,143 +989,171 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (formKey.currentState!.validate()) {
-                                    final enteredCode = codeController.text
-                                        .trim();
-                                    final enteredInternalQr =
-                                        internalQrController.text.trim();
-                                    // Los artículos sin identificación física reciben
-                                    // un QR interno único. `code` se conserva como
-                                    // identificador compatible con el esquema actual.
-                                    final generatedInternalQr =
-                                        enteredInternalQr.isNotEmpty
-                                        ? enteredInternalQr
-                                        : enteredCode.isEmpty
-                                        ? 'PROENERGIM-${const Uuid().v4()}'
-                                        : null;
-                                    final newProduct = ProductModel(
-                                      id: product?.id,
-                                      code: enteredCode.isNotEmpty
-                                          ? enteredCode
-                                          : generatedInternalQr!,
-                                      internalQr: generatedInternalQr,
-                                      serialNumber:
-                                          serialNumberController.text
-                                              .trim()
-                                              .isEmpty
-                                          ? null
-                                          : serialNumberController.text.trim(),
-                                      name: nameController.text.trim(),
-                                      subtype:
-                                          subtypeController.text.trim().isEmpty
-                                          ? null
-                                          : subtypeController.text.trim(),
-                                      brand: brandController.text.trim().isEmpty
-                                          ? null
-                                          : brandController.text.trim(),
-                                      model: modelController.text.trim().isEmpty
-                                          ? null
-                                          : modelController.text.trim(),
-                                      // Se conservan los rastros internos de la
-                                      // conciliación: no están en el formulario
-                                      // y se perderían al guardar.
-                                      attributes: {
-                                        ...?product?.hiddenAttributes,
-                                        ..._attributesFromText(
-                                          attributesController.text,
-                                        ),
-                                      },
-                                      categoryId: selectedCategoryId,
-                                      warehouseId: selectedWarehouseId,
-                                      stock:
-                                          int.tryParse(stockController.text) ??
-                                          0,
-                                      minStock:
-                                          int.tryParse(
-                                            minStockController.text,
-                                          ) ??
-                                          0,
-                                      unit: unitController.text.trim(),
-                                      price:
-                                          double.tryParse(
-                                            priceController.text,
-                                          ) ??
-                                          0.0,
-                                      currency: selectedCurrency,
-                                      isActive: product?.isActive ?? true,
-                                    );
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        if (formKey.currentState!.validate()) {
+                                          setState(() {
+                                            isSaving = true;
+                                            sheetError = null;
+                                          });
 
-                                    final productsProvider = context
-                                        .read<ProductsProvider>();
-                                    final authProvider = context
-                                        .read<AuthProvider>();
-                                    final movementsProvider = context
-                                        .read<MovementsProvider>();
-
-                                    if (isEditing) {
-                                      await productsProvider.updateProduct(
-                                        newProduct,
-                                      );
-                                    } else {
-                                      final prodId =
-                                          newProduct.id ?? const Uuid().v4();
-                                      final finalProduct = ProductModel(
-                                        id: prodId,
-                                        code: newProduct.code,
-                                        internalQr: newProduct.internalQr,
-                                        serialNumber: newProduct.serialNumber,
-                                        name: newProduct.name,
-                                        subtype: newProduct.subtype,
-                                        brand: newProduct.brand,
-                                        model: newProduct.model,
-                                        attributes: newProduct.attributes,
-                                        categoryId: newProduct.categoryId,
-                                        warehouseId: newProduct.warehouseId,
-                                        stock: newProduct.stock,
-                                        minStock: newProduct.minStock,
-                                        unit: newProduct.unit,
-                                        price: newProduct.price,
-                                        currency: newProduct.currency,
-                                        isActive: newProduct.isActive,
-                                      );
-
-                                      await productsProvider.addProduct(
-                                        finalProduct,
-                                      );
-
-                                      if (finalProduct.stock > 0 &&
-                                          selectedWarehouseId != null) {
-                                        final userProfileId =
-                                            authProvider.currentUser?.id;
-                                        if (userProfileId != null) {
-                                          final initialMovement = MovementModel(
-                                            productId: prodId,
-                                            warehouseId: selectedWarehouseId!,
-                                            projectId: null,
-                                            userId: userProfileId,
-                                            type: 'IN',
-                                            quantity: finalProduct.stock,
-                                            date: DateTime.now()
-                                                .toIso8601String()
-                                                .split('T')[0],
-                                            notes:
-                                                'Carga inicial de inventario',
+                                          final enteredCode = codeController.text
+                                              .trim();
+                                          final enteredInternalQr =
+                                              internalQrController.text.trim();
+                                          // Los artículos sin identificación física reciben
+                                          // un QR interno único. `code` se conserva como
+                                          // identificador compatible con el esquema actual.
+                                          final generatedInternalQr =
+                                              enteredInternalQr.isNotEmpty
+                                              ? enteredInternalQr
+                                              : enteredCode.isEmpty
+                                              ? 'PROENERGIM-${const Uuid().v4()}'
+                                              : null;
+                                          final newProduct = ProductModel(
+                                            id: product?.id,
+                                            code: enteredCode.isNotEmpty
+                                                ? enteredCode
+                                                : generatedInternalQr!,
+                                            internalQr: generatedInternalQr,
+                                            serialNumber:
+                                                serialNumberController.text
+                                                    .trim()
+                                                    .isEmpty
+                                                ? null
+                                                : serialNumberController.text.trim(),
+                                            name: nameController.text.trim(),
+                                            subtype:
+                                                subtypeController.text.trim().isEmpty
+                                                ? null
+                                                : subtypeController.text.trim(),
+                                            brand: brandController.text.trim().isEmpty
+                                                ? null
+                                                : brandController.text.trim(),
+                                            model: modelController.text.trim().isEmpty
+                                                ? null
+                                                : modelController.text.trim(),
+                                            // Se conservan los rastros internos de la
+                                            // conciliación: no están en el formulario
+                                            // y se perderían al guardar.
+                                            attributes: {
+                                              ...?product?.hiddenAttributes,
+                                              ..._attributesFromText(
+                                                attributesController.text,
+                                              ),
+                                            },
+                                            categoryId: selectedCategoryId,
+                                            warehouseId: selectedWarehouseId,
+                                            stock:
+                                                int.tryParse(stockController.text.trim()) ??
+                                                0,
+                                            minStock:
+                                                int.tryParse(
+                                                  minStockController.text.trim(),
+                                                ) ??
+                                                5,
+                                            unit: unitController.text.trim().isEmpty
+                                                ? 'UND'
+                                                : unitController.text.trim(),
+                                            price:
+                                                double.tryParse(
+                                                  priceController.text.trim(),
+                                                ) ??
+                                                0.0,
+                                            currency: selectedCurrency,
+                                            isActive: product?.isActive ?? true,
                                           );
-                                          await movementsProvider
-                                              .registerMovement(
-                                                initialMovement,
-                                                showNotification: false,
-                                                updateProductStock: false,
+
+                                          final productsProvider = context
+                                              .read<ProductsProvider>();
+                                          final authProvider = context
+                                              .read<AuthProvider>();
+                                          final movementsProvider = context
+                                              .read<MovementsProvider>();
+
+                                          String? error;
+                                          if (isEditing) {
+                                            error = await productsProvider.updateProduct(
+                                              newProduct,
+                                            );
+                                          } else {
+                                            final prodId =
+                                                newProduct.id ?? const Uuid().v4();
+                                            final finalProduct = ProductModel(
+                                              id: prodId,
+                                              code: newProduct.code,
+                                              internalQr: newProduct.internalQr,
+                                              serialNumber: newProduct.serialNumber,
+                                              name: newProduct.name,
+                                              subtype: newProduct.subtype,
+                                              brand: newProduct.brand,
+                                              model: newProduct.model,
+                                              attributes: newProduct.attributes,
+                                              categoryId: newProduct.categoryId,
+                                              warehouseId: newProduct.warehouseId,
+                                              stock: newProduct.stock,
+                                              minStock: newProduct.minStock,
+                                              unit: newProduct.unit,
+                                              price: newProduct.price,
+                                              currency: newProduct.currency,
+                                              isActive: newProduct.isActive,
+                                            );
+
+                                            error = await productsProvider.addProduct(
+                                              finalProduct,
+                                            );
+
+                                            if (error == null &&
+                                                finalProduct.stock > 0 &&
+                                                selectedWarehouseId != null) {
+                                              final userProfileId =
+                                                  authProvider.currentUser?.id;
+                                              if (userProfileId != null) {
+                                                final initialMovement = MovementModel(
+                                                  productId: prodId,
+                                                  warehouseId: selectedWarehouseId!,
+                                                  projectId: null,
+                                                  userId: userProfileId,
+                                                  type: 'IN',
+                                                  quantity: finalProduct.stock,
+                                                  date: DateTime.now()
+                                                      .toIso8601String()
+                                                      .split('T')[0],
+                                                  notes:
+                                                      'Carga inicial de inventario',
+                                                );
+                                                await movementsProvider
+                                                    .registerMovement(
+                                                      initialMovement,
+                                                      showNotification: false,
+                                                      updateProductStock: false,
+                                                    );
+                                              }
+                                            }
+                                          }
+                                          if (context.mounted) {
+                                            if (error != null) {
+                                              setState(() {
+                                                isSaving = false;
+                                                sheetError = error;
+                                              });
+                                              CustomSnackBar.showError(
+                                                context,
+                                                error,
                                               );
+                                            } else {
+                                              Navigator.pop(context);
+                                              CustomSnackBar.showSuccess(
+                                                context,
+                                                isEditing
+                                                    ? 'Producto actualizado exitosamente'
+                                                    : 'Producto registrado exitosamente',
+                                              );
+                                            }
+                                          }
                                         }
-                                      }
-                                    }
-                                    if (context.mounted) {
-                                      Navigator.pop(context);
-                                    }
-                                  }
-                                },
+                                      },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isDark
                                       ? const Color(0xFF60A5FA)
@@ -1038,10 +1169,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   ),
                                   elevation: 0,
                                 ),
-                                icon: const Icon(Icons.save_rounded, size: 20),
-                                label: const Text(
-                                  'Guardar',
-                                  style: TextStyle(
+                                icon: isSaving
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_rounded, size: 20),
+                                label: Text(
+                                  isSaving ? 'Guardando...' : 'Guardar',
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
@@ -1974,11 +2114,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.add_circle_outline_rounded,
+                                        size: 20,
+                                      ),
+                                      color: isDark
+                                          ? const Color(0xFF4ADE80)
+                                          : const Color(0xFF16A34A),
+                                      tooltip: 'Reabastecer (Añadir Stock)',
+                                      constraints: const BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => _quickRestock(prod),
+                                    ),
                                     const Icon(
                                       Icons.chevron_right,
                                       color: Colors.grey,
-                                      size: 18,
+                                      size: 16,
                                     ),
                                   ],
                                 ),
